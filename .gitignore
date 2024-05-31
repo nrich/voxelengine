@@ -1,0 +1,10 @@
+.nix
+.win32
+.win64
+.emcc
+voxelengine
+voxelengine32.exe
+voxelengine64.exe
+voxelengine.html
+voxelengine.js
+voxelengine.wasm

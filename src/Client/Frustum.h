@@ -28,36 +28,12 @@ namespace Client {
 
                 Plane<T> viewPlanes[6];
 
-/*
-                bool isOutside(const BoundingBox<T> &box, const Plane<T> &plane) const {
-                    return !(	
-                            plane.isInside(box[0]) || 
-                            plane.isInside(box[1]) ||
-                            plane.isInside(box[2]) || 
-                            plane.isInside(box[3]) ||
-                            plane.isInside(box[4]) || 
-                            plane.isInside(box[5]) ||
-                            plane.isInside(box[6]) || 
-                            plane.isInside(box[7])
-                            );
-                }
-*/
-
             public:
-                /*
-                Frustum() {
-                    extract();
-                }
-                */
-
                 Frustum(const Point3<T> &p, const Point3<T> &l, const Point3<T> &u, T nearview, T farview, float fov, float ratio) {
                     T tang = (T)tan(DEG2RAD * fov * 0.5);
 
                     T nh = nearview * tang;
                     T nw = nh * ratio;
-
-                    //T fh = far * tang;
-                    //T fw = fh * ratio;
 
                     Point3<T> dir,nc,fc,X,Y,Z; 
 
@@ -65,7 +41,6 @@ namespace Client {
                     // this axis points in the opposite direction from
                     // the looking direction
                     Z = ~(p - l);
-                    //Z = ~(l - p);
 
                     // X axis of camera with given "up" vector and Z axis
                     X = ~(u ^ Z);
@@ -107,40 +82,6 @@ namespace Client {
 
                     return true;
                 }
-
-/*
-                bool isInside(const Common::Brush &brush) const {
-                    if (isInside(brush.Min()) || isInside(brush.Max()) || isInside(brush.Centre()))
-                        return true;
-
-                    auto top = viewPlanes[F_TOP].distance(brush.Min()) <= 0 ? 1 : 0;
-                    auto bottom = viewPlanes[F_BOTTOM].distance(brush.Min()) <= 0 ? 1 : 0;
-
-                    auto left = viewPlanes[F_LEFT].distance(brush.Min()) <= 0 ? 1 : 0;
-                    auto right = viewPlanes[F_RIGHT].distance(brush.Min()) <= 0 ? 1 : 0;
-
-                    auto near = viewPlanes[F_NEAR].distance(brush.Min()) <= 0 ? 1 : 0;
-                    auto far = viewPlanes[F_FAR].distance(brush.Min()) <= 0 ? 1 : 0;
-
-                    if ((top != bottom || !top) && (left != right || !left) && (near != far || !near))
-                        return true;
-
-                    top = viewPlanes[F_TOP].distance(brush.Max()) <= 0 ? 1 : 0;
-                    bottom = viewPlanes[F_BOTTOM].distance(brush.Max()) <= 0 ? 1 : 0;
-
-                    left = viewPlanes[F_LEFT].distance(brush.Max()) <= 0 ? 1 : 0;
-                    right = viewPlanes[F_RIGHT].distance(brush.Max()) <= 0 ? 1 : 0;
-
-                    near = viewPlanes[F_NEAR].distance(brush.Max()) <= 0 ? 1 : 0;
-                    far = viewPlanes[F_FAR].distance(brush.Max()) <= 0 ? 1 : 0;
-
-                    if ((top != bottom || !top) && (left != right || !left) && (near != far || !near))
-                        return true;
-
-
-                    return false;
-                }
-*/
 
                 bool isInside(const Point3<T> &min, const Point3<T> &max) const {
                     T min_x = std::min(min.X(), max.X());

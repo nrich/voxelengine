@@ -57,9 +57,9 @@ namespace Math {
             }
 
             Plane(const Point3<T> &vec, T D) {  // Normal and distance to origin
-                a = vec.x;
-                b = vec.y;
-                c = vec.z;
+                a = vec.X();
+                b = vec.Y();
+                c = vec.Z();
                 d = D; 
             }
 

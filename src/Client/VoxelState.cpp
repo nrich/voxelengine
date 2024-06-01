@@ -10,6 +10,7 @@ using namespace Client;
 
 static uint64_t RequestId = 1;
 static bool FrustumCull = true;
+static bool CullFaces = true;
 
 VoxelState::VoxelState(const Common::World *world) : voxelprog("shaders/voxel.vert", "shaders/voxel.frag"), text("shaders/text.vert", "shaders/text.frag"), world(world), inputState(0), clientId(0), secret(""), origin(2, 8, 8), tickTime(0), gameTime(0) {
 }
@@ -44,34 +45,8 @@ void VoxelState::onRender(State &state, const uint64_t time) {
     voxelprog("mvp", mvp);
     voxelprog("colours", colours);
 
-    //auto facing = viewAngles.Forward();
     int total = 0;
 
-/*
-    for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
-#if 0
-        if (face_index == Renderer::VOXEL_FRONT) {
-            if (facing.Z() < 0)
-                continue;
-        } else if (face_index == Renderer::VOXEL_BACK) {
-            if (facing.Z() > 0)
-                continue;
-        } else if (face_index == Renderer::VOXEL_LEFT) {
-            if (facing.X() < 0)
-                continue;
-        } else if (face_index == Renderer::VOXEL_RIGHT) {
-            if (facing.X() > 0)
-                continue;
-        } else if (face_index == Renderer::VOXEL_BOTTOM) {
-            if (facing.Y() < 0)
-                continue;
-         } else if (face_index == Renderer::VOXEL_TOP) {
-            if (facing.Y() > 0)
-                continue;
-        }
-#endif
-
-*/
     Dot3 chunk_index = world->calculateChunkIndex(potential);
 
     for (int wy = chunk_index.Y()-5; wy < chunk_index.Y()+6; wy++) {
@@ -84,10 +59,55 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         if (!(wy == chunk_index.Y() && wz == chunk_index.Z() && wx == chunk_index.X()) && !frustum.isInside(Vec3F(wx * 32, wy * 32, wz * 32), Vec3F((wx+1) * 32, (wy+1) * 32, (wz+1) * 32)))
                             continue;
 
+                    auto world_offset = Vec3F(wx * BLOCKS_LEN, wy * BLOCKS_LEN, wz * BLOCKS_LEN);
+
                     for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
+                        if (CullFaces) {
+                            if (face_index == Renderer::VOXEL_FRONT) {
+                                auto normal = Vec3F(0, 0, -1);
+
+                                auto plane = PlaneF(normal, world_offset + Vec3F(0, 0, BLOCKS_LEN));
+
+                                if (plane.isOutside(potential))
+                                    continue;
+                            } else if (face_index == Renderer::VOXEL_BACK) {
+                                auto normal = Vec3F(0, 0, 1);
+
+                                auto plane = PlaneF(normal, world_offset);
+                                if (plane.isOutside(potential))
+                                    continue;
+                            } else if (face_index == Renderer::VOXEL_LEFT) {
+                                auto normal = Vec3F(-1, 0, 0);
+
+                                auto plane = PlaneF(normal, world_offset + Vec3F(BLOCKS_LEN, 0, 0));
+
+                                if (plane.isOutside(potential))
+                                    continue;
+                            } else if (face_index == Renderer::VOXEL_RIGHT) {
+                                auto normal = Vec3F(1, 0, 0);
+
+                                auto plane = PlaneF(normal, world_offset);
+                                if (plane.isOutside(potential))
+                                    continue;
+                            } else if (face_index == Renderer::VOXEL_BOTTOM) {
+                                auto normal = Vec3F(0, -1, 0);
+
+                                auto plane = PlaneF(normal, world_offset + Vec3F(0, BLOCKS_LEN, 0));
+
+                                if (plane.isOutside(potential))
+                                    continue;
+                            } else if (face_index == Renderer::VOXEL_TOP) {
+                                auto normal = Vec3F(0, 1, 0);
+
+                                auto plane = PlaneF(normal, world_offset);
+                                if (plane.isOutside(potential))
+                                    continue;
+                            }
+                        }
+
                         auto face_data = chunk->visible_faces(face_index);
 
-                        voxelprog("world_offset", Vec3F(wx * 32, wy * 32, wz * 32));
+                        voxelprog("world_offset", world_offset);
                         voxelprog("face_type", face_index);
 
                         total += face_data.size();
@@ -101,9 +121,7 @@ void VoxelState::onRender(State &state, const uint64_t time) {
     uint32_t fps = 1000000/(time|1);
 
     auto screen = renderer->screenTransformation(10, 10, 16, 16);
-    text.draw("FPS " + std::to_string(fps), Common::Colour::White, screen);
-
-//    std::cerr << "Total: " << total << "\n";
+    text.draw("FPS " + std::to_string(fps) + " " + std::to_string(total), Common::Colour::White, screen);
 }
 
 void VoxelState::onTick(State &state, const uint64_t time) {
@@ -178,6 +196,8 @@ void VoxelState::onKeyDown(State &state, const KeyPress &event) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     } else if (event.keyCode == Common::Keys::O) {
         FrustumCull = !FrustumCull;
+    } else if (event.keyCode == Common::Keys::L) {
+        CullFaces = !CullFaces;
     }
 }
 

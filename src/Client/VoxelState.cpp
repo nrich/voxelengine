@@ -59,67 +59,70 @@ void VoxelState::onRender(State &state, const uint64_t time) {
 
                 if (chunk) {
                     if (FrustumCull)
-                        if (client_index != chunk_index && !frustum.isInside(VEC3F(chunk_index * BLOCKS_LEN), VEC3F(((chunk_index + Dot3(1, 1, 1) * BLOCKS_LEN)))))
+                        if (client_index != chunk_index && !frustum.isInside(VEC3F(chunk_index * BLOCKS_LEN), VEC3F(((chunk_index + Dot3(1, 1, 1)) * BLOCKS_LEN))))
                             continue;
 
                     frustum_culled_list.push_back(chunk_index); 
-
-                    auto world_offset = VEC3F(chunk_index * BLOCKS_LEN);
-
-                    for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
-                        if (CullFaces) {
-                            if (face_index == Renderer::VOXEL_FRONT) {
-                                auto normal = Vec3F(0, 0, -1);
-
-                                auto plane = PlaneF(normal, world_offset + Vec3F(0, 0, BLOCKS_LEN));
-
-                                if (plane.isOutside(potential))
-                                    continue;
-                            } else if (face_index == Renderer::VOXEL_BACK) {
-                                auto normal = Vec3F(0, 0, 1);
-
-                                auto plane = PlaneF(normal, world_offset);
-                                if (plane.isOutside(potential))
-                                    continue;
-                            } else if (face_index == Renderer::VOXEL_LEFT) {
-                                auto normal = Vec3F(-1, 0, 0);
-
-                                auto plane = PlaneF(normal, world_offset + Vec3F(BLOCKS_LEN, 0, 0));
-
-                                if (plane.isOutside(potential))
-                                    continue;
-                            } else if (face_index == Renderer::VOXEL_RIGHT) {
-                                auto normal = Vec3F(1, 0, 0);
-
-                                auto plane = PlaneF(normal, world_offset);
-                                if (plane.isOutside(potential))
-                                    continue;
-                            } else if (face_index == Renderer::VOXEL_BOTTOM) {
-                                auto normal = Vec3F(0, -1, 0);
-
-                                auto plane = PlaneF(normal, world_offset + Vec3F(0, BLOCKS_LEN, 0));
-
-                                if (plane.isOutside(potential))
-                                    continue;
-                            } else if (face_index == Renderer::VOXEL_TOP) {
-                                auto normal = Vec3F(0, 1, 0);
-
-                                auto plane = PlaneF(normal, world_offset);
-                                if (plane.isOutside(potential))
-                                    continue;
-                            }
-                        }
-
-                        auto face_data = chunk->visible_faces(face_index);
-
-                        voxelprog("world_offset", world_offset);
-                        voxelprog("face_type", face_index);
-
-                        total += face_data.size();
-                        voxel.drawFaces(face_index, face_data);
-                    }
                 }
             }
+        }
+    }
+
+    for (const auto &chunk_index : frustum_culled_list) {
+        auto chunk = world->chunk(chunk_index);
+        auto world_offset = VEC3F(chunk_index * BLOCKS_LEN);
+
+        for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
+            if (CullFaces) {
+                if (face_index == Renderer::VOXEL_FRONT) {
+                    auto normal = Vec3F(0, 0, -1);
+
+                    auto plane = PlaneF(normal, world_offset + Vec3F(0, 0, BLOCKS_LEN));
+
+                    if (plane.isOutside(potential))
+                        continue;
+                } else if (face_index == Renderer::VOXEL_BACK) {
+                    auto normal = Vec3F(0, 0, 1);
+
+                    auto plane = PlaneF(normal, world_offset);
+                    if (plane.isOutside(potential))
+                        continue;
+                } else if (face_index == Renderer::VOXEL_LEFT) {
+                    auto normal = Vec3F(-1, 0, 0);
+
+                    auto plane = PlaneF(normal, world_offset + Vec3F(BLOCKS_LEN, 0, 0));
+
+                    if (plane.isOutside(potential))
+                        continue;
+                } else if (face_index == Renderer::VOXEL_RIGHT) {
+                    auto normal = Vec3F(1, 0, 0);
+
+                    auto plane = PlaneF(normal, world_offset);
+                    if (plane.isOutside(potential))
+                        continue;
+                } else if (face_index == Renderer::VOXEL_BOTTOM) {
+                    auto normal = Vec3F(0, -1, 0);
+
+                    auto plane = PlaneF(normal, world_offset + Vec3F(0, BLOCKS_LEN, 0));
+
+                    if (plane.isOutside(potential))
+                        continue;
+                } else if (face_index == Renderer::VOXEL_TOP) {
+                    auto normal = Vec3F(0, 1, 0);
+
+                    auto plane = PlaneF(normal, world_offset);
+                    if (plane.isOutside(potential))
+                        continue;
+                }
+            }
+
+            auto face_data = chunk->visible_faces(face_index);
+
+            voxelprog("world_offset", world_offset);
+            voxelprog("face_type", face_index);
+
+            total += face_data.size();
+            voxel.drawFaces(face_index, face_data);
         }
     }
 

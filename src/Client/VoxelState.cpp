@@ -47,19 +47,24 @@ void VoxelState::onRender(State &state, const uint64_t time) {
 
     int total = 0;
 
-    Dot3 chunk_index = world->calculateChunkIndex(potential);
+    Dot3 client_index = world->calculateChunkIndex(potential);
 
-    for (int wy = chunk_index.Y()-5; wy < chunk_index.Y()+6; wy++) {
-        for (int wz = chunk_index.Z()-5; wz < chunk_index.Z()+6; wz++) {
-            for (int wx = chunk_index.X()-5; wx < chunk_index.X()+6; wx++) {
-                auto chunk = world->chunk(wx, wy, wz);
+    std::vector<Dot3> frustum_culled_list;
+
+    for (int wy = client_index.Y()-5; wy < client_index.Y()+6; wy++) {
+        for (int wz = client_index.Z()-5; wz < client_index.Z()+6; wz++) {
+            for (int wx = client_index.X()-5; wx < client_index.X()+6; wx++) {
+                auto chunk_index = Dot3(wx, wy, wz);
+                auto chunk = world->chunk(chunk_index);
 
                 if (chunk) {
                     if (FrustumCull)
-                        if (!(wy == chunk_index.Y() && wz == chunk_index.Z() && wx == chunk_index.X()) && !frustum.isInside(Vec3F(wx * 32, wy * 32, wz * 32), Vec3F((wx+1) * 32, (wy+1) * 32, (wz+1) * 32)))
+                        if (client_index != chunk_index && !frustum.isInside(VEC3F(chunk_index * BLOCKS_LEN), VEC3F(((chunk_index + Dot3(1, 1, 1) * BLOCKS_LEN)))))
                             continue;
 
-                    auto world_offset = Vec3F(wx * BLOCKS_LEN, wy * BLOCKS_LEN, wz * BLOCKS_LEN);
+                    frustum_culled_list.push_back(chunk_index); 
+
+                    auto world_offset = VEC3F(chunk_index * BLOCKS_LEN);
 
                     for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
                         if (CullFaces) {

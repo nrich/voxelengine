@@ -12,7 +12,24 @@ static uint64_t RequestId = 1;
 static bool FrustumCull = true;
 static bool CullFaces = true;
 
+static const int Z_BUFFER_WIDTH = 32;
+static const int Z_BUFFER_HEIGHT = 18;
+
 VoxelState::VoxelState(const Common::World *world) : voxelprog("shaders/voxel.vert", "shaders/voxel.frag"), text("shaders/text.vert", "shaders/text.frag"), world(world), inputState(0), clientId(0), secret(""), origin(2, 8, 8), tickTime(0), gameTime(0) {
+}
+
+static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height) {
+    auto pos = Vec4F(VEC3F(world_pos), 1.0);
+    auto v = projection_matrix * (view_matrix * pos);
+
+    auto screen_pos = v.XYZ();
+    if (v.W() != 0)
+        screen_pos = screen_pos / v.W();
+
+    auto screen_x = screen_pos.X()/2 * screen_width/2 + screen_width/2;
+    auto screen_y = screen_height - (screen_pos.Y()/2 * screen_height/2 + screen_height/2);
+
+    return Dot(screen_x, screen_y);
 }
 
 void VoxelState::onRender(State &state, const uint64_t time) {
@@ -68,7 +85,48 @@ void VoxelState::onRender(State &state, const uint64_t time) {
         }
     }
 
+    std::sort(frustum_culled_list.begin(), frustum_culled_list.end(), [client_index](const Dot3 &a, const Dot3& b) {
+        auto a_len = (a - client_index).length();
+        auto b_len = (b - client_index).length();
+
+        return a_len < b_len;
+    });
+
+    std::array<uint32_t, Z_BUFFER_WIDTH * Z_BUFFER_HEIGHT> zbuffer = {};
+    std::vector<Dot3> occlusion_culled_list;
+
     for (const auto &chunk_index : frustum_culled_list) {
+        auto chunk = world->chunk(chunk_index);
+        auto world_offset = chunk_index * BLOCKS_LEN;
+
+        int visible = 0;
+
+        for (int y = 0; y < BLOCKS_LEN; y++) {
+            for (int z = 0; z < BLOCKS_LEN; z++) {
+                for (int x = 0; x < BLOCKS_LEN; x++) {
+                    if ((int)chunk->block(x, y, z) == 0)
+                        continue;
+
+                    auto screen_pos = world_to_screen(world_offset + Dot3(x, y, z), view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
+
+                    if (screen_pos.X() < 0 || screen_pos.X() >= Z_BUFFER_WIDTH || screen_pos.Y() < 0 || screen_pos.Y() >= Z_BUFFER_HEIGHT)
+                        continue;
+
+                    if (zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()])
+                        continue;
+
+                    zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()] = (int)chunk->block(x, y, z);
+                    visible++;
+                }
+            }
+        }
+
+        if (visible) {
+            occlusion_culled_list.push_back(chunk_index);
+        }
+    }
+
+    for (const auto &chunk_index : occlusion_culled_list) {
         auto chunk = world->chunk(chunk_index);
         auto world_offset = VEC3F(chunk_index * BLOCKS_LEN);
 

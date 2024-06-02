@@ -436,22 +436,6 @@ namespace Math {
             }
 
             Point3<T> operator*(const Point3<T> &in) const{
-
-/*
-                Point3<T> out;
-                for (int i = 0; i < 3; i++) {
-                    for (int j = 0; j < 3; j++) {
-                        T val = m[i * 4 + j];
-                        T vecval = in(i);
-
-                        out[i] += val * vecval;
-                    }
-                }
-
-                return out;
-
-*/
-
                 T x = in[0] * m[0] + in[1] * m[4] + in[2] * m[8] + m[12]; 
                 T y = in[0] * m[1] + in[1] * m[5] + in[2] * m[9] + m[13]; 
                 T z = in[0] * m[2] + in[1] * m[6] + in[2] * m[10] + m[14];

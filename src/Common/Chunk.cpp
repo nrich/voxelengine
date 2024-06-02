@@ -38,12 +38,19 @@ void Chunk::Join(std::shared_ptr<Chunk> a, Neighbour relationship, std::shared_p
 }
 
 bool Chunk::empty() const {
-    int sum = 0;
-
      for (auto block : blocks)
-        sum += (int)block;
+        if (block != Block::Empty)
+            return false;
 
-    return sum == 0;
+    return true;
+}
+
+bool Chunk::full() const {
+     for (auto block : blocks)
+        if (block == Block::Empty)
+            return false;
+
+    return true;
 }
 
 const std::vector<uint32_t> &Chunk::visible_faces(int face_index) const {

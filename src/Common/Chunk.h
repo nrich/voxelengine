@@ -68,6 +68,7 @@ namespace Common {
         void fillLayer(const uint32_t y, Block block);
 
         bool empty() const;
+        bool full() const;
 
         std::shared_ptr<Chunk> neighbour(Neighbour index) const {
             return neighbours[(int)index];

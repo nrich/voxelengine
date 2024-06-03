@@ -8,16 +8,18 @@
 namespace Client {
     struct ChangeState {
         Vec3F origin;
-        vecf angle;
+        Vec3F angles;
+        Vec3F viewAngles;
+        int64_t clientId;
+        std::string secret;
 
-        ChangeState(Vec3F origin, vecf angle) : origin(origin), angle(angle) {
-
+        ChangeState(const Vec3F &origin, const Vec3F &angles, const Vec3F &viewAngles, int64_t clientId, const std::string &secret) : origin(origin), angles(angles), viewAngles(viewAngles), clientId(clientId), secret(secret) {
         }
 
         std::string toString() const {
             std::ostringstream s;
 
-            s << "{" << origin.toString() << "," << std::to_string(angle) << "}";
+            s << "{" << origin.toString() << "," << angles.toString() << "," << viewAngles.toString() << "," << clientId << "," << secret << "}";
 
             return s.str();
         }

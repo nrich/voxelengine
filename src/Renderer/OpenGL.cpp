@@ -13,7 +13,7 @@ OpenGL::OpenGL(const Common::DisplayMode &displayMode, int interfaceScale, int r
 }
 
 void OpenGL::setupWorldView() {
-    glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
 #if 1

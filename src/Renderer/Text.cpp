@@ -2591,11 +2591,20 @@ static const char *pixelbitmaps[] = {
 
 Text::Text(Program &program) : program(std::move(program)) {
     loadPixelBitmaps();
+    createGLObjects();
 }
 
 Text::Text(const std::string &vertex_shader_filename, const std::string &fragment_shader_filename) : program(vertex_shader_filename, fragment_shader_filename) {
     loadPixelBitmaps();
+    createGLObjects();
+}
 
+Text::Text(const std::string &shader_filename) : program(shader_filename) {
+    loadPixelBitmaps();
+    createGLObjects();
+}
+
+void Text::createGLObjects() {
     std::array<Vertex, 4> vertices = {
         Vertex(Vec3F(0.0f, 0.0f, 0.0f), Vec2F(0,1)),
         Vertex(Vec3F(1.0f, 0.0f, 0.0f), Vec2F(1,1)),
@@ -2624,14 +2633,7 @@ Text::Text(const std::string &vertex_shader_filename, const std::string &fragmen
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*)24);
     glEnableVertexAttribArray(1);
-
 }
-
-Text::Text(const std::string &shader_filename) : program(shader_filename) {
-    loadPixelBitmaps();
-}
-
-
 
 GLuint Text::CreateTexture(std::array<char, 256> pixels) {
     GLuint texture;
@@ -2647,7 +2649,6 @@ GLuint Text::CreateTexture(std::array<char, 256> pixels) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 8, 8, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
 
     return texture;
-
 }
 
 void Text::loadPixelBitmaps() {

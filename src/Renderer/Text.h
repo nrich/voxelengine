@@ -22,6 +22,8 @@ class Text {
     GLuint VBO;
     GLuint VAO;
     GLuint EBO;
+
+    void createGLObjects();
 public:
     Text(Program &program);
     Text(const std::string &vertex_shader_filename, const std::string &fragment_shader_filename);

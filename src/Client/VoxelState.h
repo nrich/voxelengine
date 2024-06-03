@@ -6,6 +6,7 @@
 #include "Client/BaseState.h"
 #include "Renderer/Program.h"
 #include "Renderer/Text.h"
+#include "Renderer/ColourBuffer.h"
 #include "Renderer/Voxel.h"
 #include "Common/Chunk.h"
 #include "Common/World.h"
@@ -17,6 +18,7 @@ namespace Client {
         Renderer::Program voxelprog;
         Renderer::Voxel voxel;
         Renderer::Text text;
+        Renderer::ColourBuffer colourBuffer;
         const Common::World *world;
 
         uint32_t inputState;

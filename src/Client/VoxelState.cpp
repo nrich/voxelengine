@@ -1,6 +1,7 @@
 #include "Client/State.h"
 #include "Client/VoxelState.h"
 #include "Client/Camera.h"
+#include "Client/ChangeState.h"
 
 #include "Common/Keys.h"
 
@@ -10,12 +11,15 @@ using namespace Client;
 
 static uint64_t RequestId = 1;
 static bool FrustumCull = true;
-static bool CullFaces = true;
+static bool BackfaceCull = true;
+static bool OcclusionCull = true;
 
-static const int Z_BUFFER_WIDTH = 32;
-static const int Z_BUFFER_HEIGHT = 18;
+static const int Z_BUFFER_WIDTH = 64;
+static const int Z_BUFFER_HEIGHT = 36;
 
-VoxelState::VoxelState(const Common::World *world) : voxelprog("shaders/voxel.vert", "shaders/voxel.frag"), text("shaders/text.vert", "shaders/text.frag"), world(world), inputState(0), clientId(0), secret(""), origin(2, 8, 8), tickTime(0), gameTime(0) {
+static std::array<uint32_t, Z_BUFFER_WIDTH * Z_BUFFER_HEIGHT> zbuffer = {0};
+
+VoxelState::VoxelState(const Common::World *world) : voxelprog("shaders/voxel.vert", "shaders/voxel.frag"), text("shaders/text.vert", "shaders/text.frag"), colourBuffer("shaders/colour_buffer.vert", "shaders/colour_buffer.frag"), world(world), inputState(0), clientId(0), secret(""), origin(2, 8, 8), tickTime(0), gameTime(0) {
 }
 
 static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height) {
@@ -58,10 +62,6 @@ void VoxelState::onRender(State &state, const uint64_t time) {
     auto model = MatrixF::Scaling(1.0);
     auto mvp = model * view * projection;
 
-    voxelprog.use();
-    voxelprog("mvp", mvp);
-    voxelprog("colours", colours);
-
     int total = 0;
 
     Dot3 client_index = world->calculateChunkIndex(potential);
@@ -92,46 +92,60 @@ void VoxelState::onRender(State &state, const uint64_t time) {
         return a_len < b_len;
     });
 
-    std::array<uint32_t, Z_BUFFER_WIDTH * Z_BUFFER_HEIGHT> zbuffer = {};
     std::vector<Dot3> occlusion_culled_list;
 
-    for (const auto &chunk_index : frustum_culled_list) {
-        auto chunk = world->chunk(chunk_index);
-        auto world_offset = chunk_index * BLOCKS_LEN;
+    if (OcclusionCull) {
+        std::fill(zbuffer.begin(), zbuffer.end(), 0);
 
-        int visible = 0;
+        for (const auto &chunk_index : frustum_culled_list) {
+            auto chunk = world->chunk(chunk_index);
+            auto world_offset = chunk_index * BLOCKS_LEN;
 
-        for (int y = 0; y < BLOCKS_LEN; y++) {
-            for (int z = 0; z < BLOCKS_LEN; z++) {
-                for (int x = 0; x < BLOCKS_LEN; x++) {
-                    if ((int)chunk->block(x, y, z) == 0)
-                        continue;
+            int visible = 0;
 
-                    auto screen_pos = world_to_screen(world_offset + Dot3(x, y, z), view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
+            for (int y = 0; y < BLOCKS_LEN; y++) {
+                for (int z = 0; z < BLOCKS_LEN; z++) {
+                    for (int x = 0; x < BLOCKS_LEN; x++) {
+                        if ((int)chunk->block(x, y, z) == 0)
+                            continue;
 
-                    if (screen_pos.X() < 0 || screen_pos.X() >= Z_BUFFER_WIDTH || screen_pos.Y() < 0 || screen_pos.Y() >= Z_BUFFER_HEIGHT)
-                        continue;
+                        auto screen_pos = world_to_screen(world_offset + Dot3(x, y, z), view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
 
-                    if (zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()])
-                        continue;
+                        if (screen_pos.X() < 0 || screen_pos.X() >= Z_BUFFER_WIDTH || screen_pos.Y() < 0 || screen_pos.Y() >= Z_BUFFER_HEIGHT)
+                            continue;
 
-                    zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()] = (int)chunk->block(x, y, z);
-                    visible++;
+                        if (zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()])
+                            continue;
+
+                        zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()] = (int)chunk->block(x, y, z);
+                        visible++;
+                    }
                 }
+            }
+
+            if (visible) {
+                occlusion_culled_list.push_back(chunk_index);
             }
         }
 
-        if (visible) {
-            occlusion_culled_list.push_back(chunk_index);
-        }
+        auto screen = renderer->screenTransformation(10, 30, Z_BUFFER_WIDTH*2, Z_BUFFER_HEIGHT*2);
+        std::vector<uint32_t> screen_buffer;
+        std::copy(zbuffer.begin(), zbuffer.end(), std::back_inserter(screen_buffer));
+        colourBuffer.draw(screen_buffer, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, colours, screen);
+    } else {
+        occlusion_culled_list = frustum_culled_list;
     }
+
+    voxelprog.use();
+    voxelprog("mvp", mvp);
+    voxelprog("colours", colours);
 
     for (const auto &chunk_index : occlusion_culled_list) {
         auto chunk = world->chunk(chunk_index);
         auto world_offset = VEC3F(chunk_index * BLOCKS_LEN);
 
         for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
-            if (CullFaces) {
+            if (BackfaceCull) {
                 if (face_index == Renderer::VOXEL_FRONT) {
                     auto normal = Vec3F(0, 0, -1);
 
@@ -263,7 +277,10 @@ void VoxelState::onKeyDown(State &state, const KeyPress &event) {
     } else if (event.keyCode == Common::Keys::O) {
         FrustumCull = !FrustumCull;
     } else if (event.keyCode == Common::Keys::L) {
-        CullFaces = !CullFaces;
+        BackfaceCull = !BackfaceCull;
+    } else if (event.keyCode == Common::Keys::K) {
+        OcclusionCull = !OcclusionCull;
+
     }
 }
 
@@ -310,6 +327,14 @@ void VoxelState::onEnterState(State &state, std::any data) {
 
         clientId = response.id;
         secret = std::string(response.secret);
+    } else if (data.type() == typeid(ChangeState)) {
+        auto state = std::any_cast<ChangeState>(data);
+
+        origin = state.origin;
+        angles = state.angles;
+        viewAngles = state.viewAngles;
+        clientId = state.clientId;
+        secret = state.secret;
     } else if (data.type() == typeid(ClientConnectResponse)) {
         auto response = std::any_cast<ClientConnectResponse>(data);
 

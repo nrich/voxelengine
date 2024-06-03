@@ -105,6 +105,7 @@ COMMON_OBJS := \
 	src/Game/State.o \
 	src/Platform/Base.o \
 	src/Renderer/Base.o \
+	src/Renderer/ColourBuffer.o \
 	src/Renderer/OpenGL.o \
 	src/Renderer/Program.o \
 	src/Renderer/Text.o \

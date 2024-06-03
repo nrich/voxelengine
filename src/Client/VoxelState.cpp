@@ -95,8 +95,9 @@ void VoxelState::onRender(State &state, const uint64_t time) {
         return a_len < b_len;
     });
 
-    std::vector<Dot3> occlusion_culled_list;
-    std::map<Dot3, std::array<std::vector<uint32_t>, Renderer::VOXEL_COUNT>> render_faces;
+    voxelprog.use();
+    voxelprog("mvp", mvp);
+    voxelprog("colours", colours);
 
     if (OcclusionCull) {
         std::fill(zbuffer.begin(), zbuffer.end(), 0);
@@ -104,8 +105,6 @@ void VoxelState::onRender(State &state, const uint64_t time) {
         for (const auto &chunk_index : frustum_culled_list) {
             auto chunk = world->chunk(chunk_index);
             auto world_offset = VEC3F(chunk_index) * BLOCKS_LEN;
-
-            int visible = 0;
 
             for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
                 if (BackfaceCull) {
@@ -151,9 +150,9 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                     }
                 }
 
-                auto face_data = chunk->visibleFaces(face_index);
-
-                for (const uint32_t packed_voxel : face_data) {
+                auto visible_faces = chunk->visibleFaces(face_index);
+                std::vector<uint32_t> face_data;
+                for (const uint32_t packed_voxel : visible_faces) {
                     Dot3 position = Renderer::Voxel::Decode(packed_voxel);
 
                     auto screen_pos = world_to_screen(chunk_index * BLOCKS_LEN + position, view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
@@ -163,17 +162,19 @@ void VoxelState::onRender(State &state, const uint64_t time) {
 
                     Common::Block block = chunk->block(position.X(), position.Y(), position.Z());
 
-                    if (zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()] && zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()] != (uint32_t)block)
+                    if (zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()])
                         continue;
 
                     zbuffer[Z_BUFFER_WIDTH * screen_pos.Y() + screen_pos.X()] = (uint32_t)block;
-                    render_faces[chunk_index * BLOCKS_LEN][face_index].push_back(packed_voxel);
-                    visible++;
-                }
-            }
 
-            if (visible) {
-                occlusion_culled_list.push_back(chunk_index);
+                    face_data.push_back(packed_voxel);
+                }
+
+                voxelprog("world_offset", world_offset);
+                voxelprog("face_type", face_index);
+
+                total += face_data.size();
+                voxel.drawFaces(face_index, face_data);
             }
         }
 
@@ -182,36 +183,64 @@ void VoxelState::onRender(State &state, const uint64_t time) {
         std::copy(zbuffer.begin(), zbuffer.end(), std::back_inserter(screen_buffer));
         colourBuffer.draw(screen_buffer, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, colours, screen);
     } else {
-        occlusion_culled_list = frustum_culled_list;
-    }
+        for (const auto &chunk_index : frustum_culled_list) {
+            auto chunk = world->chunk(chunk_index);
+            auto world_offset = VEC3F(chunk_index) * BLOCKS_LEN;
 
-    voxelprog.use();
-    voxelprog("mvp", mvp);
-    voxelprog("colours", colours);
-    
-    /*
-    for (const auto &chunk_index : occlusion_culled_list) {
-        auto chunk = world->chunk(chunk_index);
-        auto world_offset = VEC3F(chunk_index * BLOCKS_LEN);
+            for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
+                if (BackfaceCull) {
+                    if (face_index == Renderer::VOXEL_FRONT) {
+                        auto normal = Vec3F(0, 0, -1);
 
-        for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
-            auto face_data = chunk->visibleFaces(face_index);
+                        auto plane = PlaneF(normal, world_offset + Vec3F(0, 0, BLOCKS_LEN));
 
-            voxelprog("world_offset", world_offset);
-            voxelprog("face_type", face_index);
+                        if (plane.isOutside(potential))
+                            continue;
+                    } else if (face_index == Renderer::VOXEL_BACK) {
+                        auto normal = Vec3F(0, 0, 1);
 
-            total += face_data.size();
-            voxel.drawFaces(face_index, face_data);
+                        auto plane = PlaneF(normal, world_offset);
+                        if (plane.isOutside(potential))
+                            continue;
+                    } else if (face_index == Renderer::VOXEL_LEFT) {
+                        auto normal = Vec3F(-1, 0, 0);
+
+                        auto plane = PlaneF(normal, world_offset + Vec3F(BLOCKS_LEN, 0, 0));
+
+                        if (plane.isOutside(potential))
+                            continue;
+                    } else if (face_index == Renderer::VOXEL_RIGHT) {
+                        auto normal = Vec3F(1, 0, 0);
+
+                        auto plane = PlaneF(normal, world_offset);
+                        if (plane.isOutside(potential))
+                            continue;
+                    } else if (face_index == Renderer::VOXEL_BOTTOM) {
+                        auto normal = Vec3F(0, -1, 0);
+
+                        auto plane = PlaneF(normal, world_offset + Vec3F(0, BLOCKS_LEN, 0));
+
+                        if (plane.isOutside(potential))
+                            continue;
+                    } else if (face_index == Renderer::VOXEL_TOP) {
+                        auto normal = Vec3F(0, 1, 0);
+
+                        auto plane = PlaneF(normal, world_offset);
+                        if (plane.isOutside(potential))
+                            continue;
+                    }
+                }
+
+                auto visible_faces = chunk->visibleFaces(face_index);
+
+                voxelprog("world_offset", world_offset);
+                voxelprog("face_type", face_index);
+
+                total += visible_faces.size();
+                voxel.drawFaces(face_index, visible_faces);
+            }
         }
-    }
-    */
 
-    for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
-        for (auto const& [world_offset, faces] : render_faces) {
-            voxelprog("world_offset", VEC3F(world_offset));
-            voxelprog("face_type", face_index);
-            voxel.drawFaces(face_index, faces[face_index]);
-        }
     }
 
     uint32_t fps = 1000000/(time|1);

@@ -114,5 +114,13 @@ uint32_t Voxel::Encode(const Dot3 &d, int colour_index, int add_width, int add_h
     return Voxel::Encode(d.X(), d.Y(), d.X(), colour_index, add_width, add_height);
 }
 
+Dot3 Voxel::Decode(uint32_t packed_voxel) {
+    int x = packed_voxel & 31;
+    int y = (packed_voxel >> 5) & 31;
+    int z = (packed_voxel >> 10) & 31;
+
+    return Dot3(x, y , z);
+}
+
 Voxel::~Voxel() {
 }

@@ -78,7 +78,7 @@ namespace Common {
 
         static void Join(std::shared_ptr<Chunk> a, Neighbour relationship, std::shared_ptr<Chunk> b);
 
-        const std::vector<uint32_t> &visible_faces(int face_index) const;
+        const std::vector<uint32_t> &visibleFaces(int face_index) const;
         void buildMesh();
 
         ~Chunk();

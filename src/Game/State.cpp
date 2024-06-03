@@ -96,7 +96,7 @@ ClientGameStateResponse State::update(const ClientGameStateRequest &request) {
         for (int y = 0; y < BLOCKS_LEN; y++) {
             auto block = chunk->block(chunk_x, y, chunk_z);
             if (block == Common::Block::Empty) {
-                origin = origin.withY(y+2);
+                origin = origin.withY(y+5);
                 break;
             }
         }

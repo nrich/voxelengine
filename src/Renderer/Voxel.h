@@ -45,6 +45,7 @@ public:
 
     static uint32_t Encode(int x, int y, int z, int colour_index, int add_width=0, int add_height=0);
     static uint32_t Encode(const Dot3 &d, int colour_index, int add_width=0, int add_height=0);
+    static Dot3 Decode(uint32_t packed_voxel);
 
     ~Voxel();
 }; 

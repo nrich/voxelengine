@@ -53,7 +53,7 @@ bool Chunk::full() const {
     return true;
 }
 
-const std::vector<uint32_t> &Chunk::visible_faces(int face_index) const {
+const std::vector<uint32_t> &Chunk::visibleFaces(int face_index) const {
     if (!mesh) {
         static std::vector<uint32_t> empty_faces = {};
         return empty_faces;

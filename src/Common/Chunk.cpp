@@ -19,6 +19,9 @@ Block Chunk::block(const uint32_t x, const uint32_t y, const uint32_t z) const {
 
     return blocks[(y*BLOCKS_LEN*BLOCKS_LEN) + (z*BLOCKS_LEN) + x];
 }
+Block Chunk::block(const Dot3 &pos) const {
+    return block(pos.X(), pos.Y(), pos.Z());
+}
 
 void Chunk::set(const uint32_t x, const uint32_t y, const uint32_t z, Block block) {
     blocks[(y*BLOCKS_LEN*BLOCKS_LEN) + (z*BLOCKS_LEN) + x] = block;

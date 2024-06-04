@@ -5,6 +5,7 @@
 #include <array>
 
 #include "Common/Shared.h"
+#include "Math/Point3.h"
 
 #include "external/PerlinNoise.hpp"
 
@@ -61,6 +62,7 @@ namespace Common {
         Chunk();
 
         Block block(const uint32_t x, const uint32_t y, const uint32_t z) const;
+        Block block(const Dot3 &pos) const;
 
         void set(const uint32_t x, const uint32_t y, const uint32_t z, Block block);
 

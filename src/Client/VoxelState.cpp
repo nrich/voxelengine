@@ -14,8 +14,8 @@ static bool FrustumCull = true;
 static bool BackfaceCull = true;
 static bool OcclusionCull = true;
 
-static const int Z_BUFFER_WIDTH = 160*2;
-static const int Z_BUFFER_HEIGHT = 90*2;
+static const int Z_BUFFER_WIDTH = 160*1;
+static const int Z_BUFFER_HEIGHT = 90*1;
 
 static std::array<uint32_t, Z_BUFFER_WIDTH * Z_BUFFER_HEIGHT> zbuffer = {0};
 
@@ -315,7 +315,9 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                 Dot3 last_drawn(-1, -1, -1);
 
                 for (const uint32_t packed_voxel : visible_faces) {
-                    std::vector<Dot3> points;
+                    bool draw_any = false;
+
+                    std::array<Dot3, 4> points;
 
                     Dot3 first = Renderer::Voxel::Decode(packed_voxel);
                     auto world_postion = world_offset + VEC3F(first);
@@ -325,57 +327,58 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first);
-                        points.push_back(first + Dot3(1, 0, 0));
-                        points.push_back(first + Dot3(0, 0, 1));
-                        points.push_back(first + Dot3(1, 0, 1));
+                        points[0] = first;
+                        points[1] = first + Dot3(1, 0, 0);
+                        points[2] = first + Dot3(0, 0, 1);
+                        points[3] = first + Dot3(1, 0, 1);
                     } else if (face_index == Renderer::VOXEL_TOP) {
                         auto normal = Vec3F(0, -1, 0);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first + Dot3(0, 1, 0));
-                        points.push_back(first + Dot3(1, 1, 0));
-                        points.push_back(first + Dot3(0, 1, 1));
-                        points.push_back(first + Dot3(1, 1, 1));
+                        points[0] = first + Dot3(0, 1, 0);
+                        points[1] = first + Dot3(1, 1, 0);
+                        points[2] = first + Dot3(0, 1, 1);
+                        points[3] = first + Dot3(1, 1, 1);
                     } else if (face_index == Renderer::VOXEL_LEFT) {
                         auto normal = Vec3F(1, 0, 0);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first);
-                        points.push_back(first + Dot3(0, 0, 1));
-                        points.push_back(first + Dot3(0, 1, 0));
-                        points.push_back(first + Dot3(0, 1, 1));
+                        points[0] = first;
+                        points[1] = first + Dot3(0, 0, 1);
+                        points[2] = first + Dot3(0, 1, 0);
+                        points[3] = first + Dot3(0, 1, 1);
                     } else if (face_index == Renderer::VOXEL_RIGHT) {
                         auto normal = Vec3F(-1, 0, 0);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first + Dot3(1, 0, 0));
-                        points.push_back(first + Dot3(1, 0, 1));
-                        points.push_back(first + Dot3(1, 1, 0));
-                        points.push_back(first + Dot3(1, 1, 1));
+                        points[0] = first + Dot3(1, 0, 0);
+                        points[1] = first + Dot3(1, 0, 1);
+                        points[2] = first + Dot3(1, 1, 0);
+                        points[3] = first + Dot3(1, 1, 1);
                     } else if (face_index == Renderer::VOXEL_BACK) {
                         auto normal = Vec3F(0, 0, -1);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first + Dot3(0, 0, 1));
-                        points.push_back(first + Dot3(1, 0, 1));
-                        points.push_back(first + Dot3(0, 1, 1));
-                        points.push_back(first + Dot3(1, 1, 1));
+                        points[0] = first + Dot3(0, 0, 1);
+                        points[1] = first + Dot3(1, 0, 1);
+                        points[2] = first + Dot3(0, 1, 1);
+                        points[3] = first + Dot3(1, 1, 1);
                     } else if (face_index == Renderer::VOXEL_FRONT) {
                         auto normal = Vec3F(0, 0, 1);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first);
-                        points.push_back(first + Dot3(1, 0, 0));
-                        points.push_back(first + Dot3(0, 1, 0));
-                        points.push_back(first + Dot3(1, 1, 0));
+                        points[0] = first;
+                        points[1] = first + Dot3(1, 0, 0);
+                        points[2] = first + Dot3(0, 1, 0);
+                        points[3] = first + Dot3(1, 1, 0);
                     }
 
+#if 1
                     auto screen_pos_0 = world_to_screen(chunk_index * BLOCKS_LEN + points[0], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
                     auto screen_pos_1 = world_to_screen(chunk_index * BLOCKS_LEN + points[1], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
                     auto screen_pos_2 = world_to_screen(chunk_index * BLOCKS_LEN + points[2], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
@@ -401,8 +404,6 @@ void VoxelState::onRender(State &state, const uint64_t time) {
 
                     Common::Block block = chunk->block(first);
 
-                    bool draw_any = false;
-
                     int min_x = screen_pos_0.X();
                     int max_x = screen_pos_0.X();
                     int min_y = screen_pos_0.Y();
@@ -423,9 +424,9 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                     max_y = std::max(max_y, screen_pos_1.Y());
                     max_y = std::max(max_y, screen_pos_2.Y());
                     max_y = std::max(max_y, screen_pos_3.Y());
+#endif
 
-
-#if 0
+#if 1
                     for (int y = min_y; y <= max_y; y++) {
                         for (int x = min_x; x <= max_x; x++) {
                             if (zbuffer[Z_BUFFER_WIDTH * y + x])
@@ -481,56 +482,55 @@ void VoxelState::onRender(State &state, const uint64_t time) {
             auto world_offset = VEC3F(chunk_index) * BLOCKS_LEN;
 
             for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
-                if (BackfaceCull) {
-                    if (face_index == Renderer::VOXEL_FRONT) {
-                        auto normal = Vec3F(0, 0, -1);
-
-                        auto plane = PlaneF(normal, world_offset + Vec3F(0, 0, BLOCKS_LEN));
-
-                        if (plane.isOutside(potential))
-                            continue;
-                    } else if (face_index == Renderer::VOXEL_BACK) {
-                        auto normal = Vec3F(0, 0, 1);
-
-                        auto plane = PlaneF(normal, world_offset);
-                        if (plane.isOutside(potential))
-                            continue;
-                    } else if (face_index == Renderer::VOXEL_LEFT) {
-                        auto normal = Vec3F(-1, 0, 0);
-
-                        auto plane = PlaneF(normal, world_offset + Vec3F(BLOCKS_LEN, 0, 0));
-
-                        if (plane.isOutside(potential))
-                            continue;
-                    } else if (face_index == Renderer::VOXEL_RIGHT) {
-                        auto normal = Vec3F(1, 0, 0);
-
-                        auto plane = PlaneF(normal, world_offset);
-                        if (plane.isOutside(potential))
-                            continue;
-                    } else if (face_index == Renderer::VOXEL_BOTTOM) {
-                        auto normal = Vec3F(0, -1, 0);
-
-                        auto plane = PlaneF(normal, world_offset + Vec3F(0, BLOCKS_LEN, 0));
-
-                        if (plane.isOutside(potential))
-                            continue;
-                    } else if (face_index == Renderer::VOXEL_TOP) {
-                        auto normal = Vec3F(0, 1, 0);
-
-                        auto plane = PlaneF(normal, world_offset);
-                        if (plane.isOutside(potential))
-                            continue;
-                    }
-                }
-
                 auto visible_faces = chunk->visibleFaces(face_index);
 
-                voxelprog("world_offset", world_offset);
-                voxelprog("face_type", face_index);
+                if (BackfaceCull) {
+                    std::vector<uint32_t> face_data;
 
-                total += visible_faces.size();
-                voxel.drawFaces(face_index, visible_faces);
+                    for (const uint32_t packed_voxel : visible_faces) {
+                        Dot3 first = Renderer::Voxel::Decode(packed_voxel);
+                        auto world_postion = world_offset + VEC3F(first);
+
+                        if (face_index == Renderer::VOXEL_FRONT) {
+                            auto normal = Vec3F(0, 0, 1);
+                            if ((world_postion - potential) % normal < 0)
+                                continue;
+                        } else if (face_index == Renderer::VOXEL_BACK) {
+                            auto normal = Vec3F(0, 0, -1);
+                            if ((world_postion - potential) % normal < 0)
+                                continue;
+                        } else if (face_index == Renderer::VOXEL_LEFT) {
+                            auto normal = Vec3F(1, 0, 0);
+                            if ((world_postion - potential) % normal < 0)
+                                continue;
+                        } else if (face_index == Renderer::VOXEL_RIGHT) {
+                            auto normal = Vec3F(-1, 0, 0);
+                            if ((world_postion - potential) % normal < 0)
+                                continue;
+                        } else if (face_index == Renderer::VOXEL_BOTTOM) {
+                            auto normal = Vec3F(0, 1, 0);
+                            if ((world_postion - potential) % normal < 0)
+                                continue;
+                        } else if (face_index == Renderer::VOXEL_TOP) {
+                            auto normal = Vec3F(0, -1, 0);
+                            if ((world_postion - potential) % normal < 0)
+                                continue;
+                        }
+
+                        face_data.push_back(packed_voxel);
+                    }
+
+                    voxelprog("world_offset", world_offset);
+                    voxelprog("face_type", face_index);
+                    total += face_data.size();
+                    voxel.drawFaces(face_index, face_data);
+                } else {
+                    voxelprog("world_offset", world_offset);
+                    voxelprog("face_type", face_index);
+                    total += visible_faces.size();
+                    voxel.drawFaces(face_index, visible_faces);
+                }
+
             }
         }
 

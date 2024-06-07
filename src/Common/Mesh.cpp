@@ -55,21 +55,57 @@ Mesh::Mesh(const Chunk *chunk) {
 
             switch (face_index) {
                 case Renderer::VOXEL_BOTTOM:
+                    if (a_pos.Y() == b_pos.Y()) {
+                        if (a_pos.Z() == b_pos.Z())
+                            return a_pos.X() < b_pos.X();
+                        else
+                            return a_pos.Z() < b_pos.Z();
+                    }
                     return a_pos.Y() < b_pos.Y();
                     break;
                 case Renderer::VOXEL_TOP:
+                    if (a_pos.Y() == b_pos.Y()) {
+                        if (a_pos.Z() == b_pos.Z())
+                            return a_pos.X() < b_pos.X();
+                        else
+                            return a_pos.Z() < b_pos.Z();
+                    }
                     return a_pos.Y() > b_pos.Y();
                     break;
                 case Renderer::VOXEL_LEFT:
+                    if (a_pos.X() == b_pos.X()) {
+                        if (a_pos.Z() == b_pos.Z())
+                            return a_pos.Y() < b_pos.Y();
+                        else
+                            return a_pos.Z() < b_pos.Z();
+                    }
                     return a_pos.X() < b_pos.X();
                     break;
                 case Renderer::VOXEL_RIGHT:
+                    if (a_pos.X() == b_pos.X()) {
+                        if (a_pos.Z() == b_pos.Z())
+                            return a_pos.Y() < b_pos.Y();
+                        else
+                            return a_pos.Z() < b_pos.Z();
+                    }
                     return a_pos.X() > b_pos.X();
                     break;
                 case Renderer::VOXEL_FRONT:
+                    if (a_pos.Z() == b_pos.Z()) {
+                        if (a_pos.X() == b_pos.X())
+                            return a_pos.Y() < b_pos.Y();
+                        else
+                            return a_pos.X() < b_pos.X();
+                    }
                     return a_pos.Z() < b_pos.Z();
                     break;
                 case Renderer::VOXEL_BACK:
+                    if (a_pos.Z() == b_pos.Z()) {
+                        if (a_pos.X() == b_pos.X())
+                            return a_pos.Y() < b_pos.Y();
+                        else
+                            return a_pos.X() < b_pos.X();
+                    }
                     return a_pos.Z() > b_pos.Z();
                     break;
                 default:

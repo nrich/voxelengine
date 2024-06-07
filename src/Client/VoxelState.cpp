@@ -14,8 +14,8 @@ static bool FrustumCull = true;
 static bool BackfaceCull = true;
 static bool OcclusionCull = true;
 
-static const int Z_BUFFER_WIDTH = 160*1;
-static const int Z_BUFFER_HEIGHT = 90*1;
+static const int Z_BUFFER_WIDTH = 160*2;
+static const int Z_BUFFER_HEIGHT = 90*2;
 
 static std::array<uint32_t, Z_BUFFER_WIDTH * Z_BUFFER_HEIGHT> zbuffer = {0};
 
@@ -43,8 +43,10 @@ static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, co
     return Dot(screen_x, screen_y);
 }
 
-static void draw_line(int x0, int y0, int x1, int y1, uint32_t colour) {
+static int draw_line(int x0, int y0, int x1, int y1, uint32_t colour) {
     int steep = 0;
+
+    int pixels_drawn = 0;
 
     if (std::abs(x0-x1) < std::abs(y0-y1)) {
         std::swap(x0,y0);
@@ -66,13 +68,19 @@ static void draw_line(int x0, int y0, int x1, int y1, uint32_t colour) {
     int y = y0;
 
     x0 = std::max((int)0, x0);
-    x1 = std::min((int)Z_BUFFER_WIDTH, x1);
+    x1 = std::min((int)Z_BUFFER_WIDTH-1, x1);
 
     for (int x=x0; x <= x1; x++) {
         if (steep) {
-            zbuffer[Z_BUFFER_WIDTH * x + y] = 1;
+            if (!zbuffer[Z_BUFFER_WIDTH * x + y]) {
+                zbuffer[Z_BUFFER_WIDTH * x + y] = colour;
+                pixels_drawn++;
+            }
         } else {
-            zbuffer[Z_BUFFER_WIDTH * y + x] = 1;
+            if (!zbuffer[Z_BUFFER_WIDTH * y + x]) {
+                zbuffer[Z_BUFFER_WIDTH * y + x] = colour;
+                pixels_drawn++;
+            }
         }
 
         error2 += derror2;
@@ -87,9 +95,11 @@ static void draw_line(int x0, int y0, int x1, int y1, uint32_t colour) {
             }
         }
     }
+
+    return pixels_drawn;
 }
 
-static void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colour) {
+static int fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colour) {
     int tmp1x = x0;
     int tmp1y = y0;
 
@@ -111,6 +121,9 @@ static void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32
     int signy1 = (int)signum(y1 - y0);
     int signy2 = (int)signum(y2 - y0);
 
+    if (dx1 == 0 && dy1 == 0 && (dx2 == 0 || dy2 == 0))
+        return 0;
+
     if (dy1 > dx1) {
         std::swap(dx1, dy1);
         changed1 = true;
@@ -124,8 +137,10 @@ static void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32
     int e1 = 2 * dy1 - dx1;
     int e2 = 2 * dy2 - dx2;
 
+    int pixels_drawn = 0;
+
     for (int i = 0; i <= dx1; i++) {
-        draw_line(tmp1x, tmp1y, tmp2x, tmp2y, colour);
+        pixels_drawn += draw_line(tmp1x, tmp1y, tmp2x, tmp2y, colour);
 
         while (e1 >= 0) {
             if (changed1)
@@ -159,9 +174,13 @@ static void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32
             e2 = e2 + 2 * dy2;
         }
     }
+
+    return pixels_drawn;
 }
 
-static void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colour, bool filled) {
+static int draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colour, bool filled) {
+    int pixels_drawn = 0;
+
     if (filled) {
         if (y1 < y0) {
             std::swap(x0, x1);
@@ -184,43 +203,37 @@ static void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32
         }
 
         if (y1 == y2) {
-            draw_triangle(x0, y0, x1, y1, x2, y2, colour, false);
-            fill_triangle(x0, y0, x1, y1, x2, y2, colour);
+            pixels_drawn += draw_triangle(x0, y0, x1, y1, x2, y2, colour, false);
+            pixels_drawn += fill_triangle(x0, y0, x1, y1, x2, y2, colour);
         } else if (y0 == y1) {
-            draw_triangle(x2, y2, x0, y0, x1, y1, colour, false);
-            fill_triangle(x2, y2, x0, y0, x1, y1, colour);
+            pixels_drawn += draw_triangle(x2, y2, x0, y0, x1, y1, colour, false);
+            pixels_drawn += fill_triangle(x2, y2, x0, y0, x1, y1, colour);
         } else {
             int x3 = x0 + (((float)(y1 - y0) / (float)(y2 - y0)) * (x2 - x0));
             int y3 = y1;
 
-            draw_triangle(x0, y0, x1, y1, x3, y3, colour, false);
-            fill_triangle(x0, y0, x1, y1, x3, y3, colour);
-            draw_triangle(x2, y2, x1, y1, x3, y3, colour, false);
-            fill_triangle(x2, y2, x1, y1, x3, y3, colour);
+            pixels_drawn += draw_triangle(x0, y0, x1, y1, x3, y3, colour, false);
+            pixels_drawn += fill_triangle(x0, y0, x1, y1, x3, y3, colour);
+            pixels_drawn += draw_triangle(x2, y2, x1, y1, x3, y3, colour, false);
+            pixels_drawn += fill_triangle(x2, y2, x1, y1, x3, y3, colour);
         }
     } else {
-        draw_line(x0, y0, x1, y1, colour);
-        draw_line(x0, y0, x2, y2, colour);
-        draw_line(x1, y1, x2, y2, colour);
+        pixels_drawn += draw_line(x0, y0, x1, y1, colour);
+        pixels_drawn += draw_line(x0, y0, x2, y2, colour);
+        pixels_drawn += draw_line(x1, y1, x2, y2, colour);
     }
+
+    return pixels_drawn;
 }
 
-static void draw_triangle(Dot a, Dot b, Dot c, uint32_t colour, bool filled) {
-    int x0 = a.X();
-    int y0 = a.Y();
-    int x1 = b.X();
-    int y1 = b.Y();
-    int x2 = c.X();
-    int y2 = c.Y();
-
-    draw_triangle(x0, y0, x1, y1, x2, y2, colour, filled);
-}
-
-static void draw_quad(Dot a, Dot b, Dot c, Dot d, uint32_t colour) {
+static int draw_quad(Dot a, Dot b, Dot c, Dot d, uint32_t colour) {
+    int pixels_drawn = 0;
     bool filled = true;
 
-    draw_triangle(a.X(), a.Y(), b.X(), b.Y(), c.X(), c.Y(), colour, filled);
-    draw_triangle(a.X(), a.Y(), c.X(), c.Y(), d.X(), d.Y(), colour, filled); 
+    pixels_drawn += draw_triangle(a.X(), a.Y(), b.X(), b.Y(), c.X(), c.Y(), colour, filled);
+    pixels_drawn += draw_triangle(a.X(), a.Y(), c.X(), c.Y(), d.X(), d.Y(), colour, filled); 
+
+    return pixels_drawn;
 }
 
 void VoxelState::onRender(State &state, const uint64_t time) {
@@ -323,8 +336,8 @@ void VoxelState::onRender(State &state, const uint64_t time) {
 
                         points.push_back(first + Dot3(0, 1, 0));
                         points.push_back(first + Dot3(1, 1, 0));
-                        points.push_back(first + Dot3(1, 1, 1));
                         points.push_back(first + Dot3(0, 1, 1));
+                        points.push_back(first + Dot3(1, 1, 1));
                     } else if (face_index == Renderer::VOXEL_LEFT) {
                         auto normal = Vec3F(1, 0, 0);
                         if ((world_postion - potential) % normal < 0)
@@ -424,8 +437,8 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         }
                     }
 #else
-                    draw_any = true;
-                    draw_quad(screen_pos_0, screen_pos_1, screen_pos_3, screen_pos_2, (uint32_t)block);
+                    int pixels_drawn = draw_quad(screen_pos_0, screen_pos_1, screen_pos_3, screen_pos_2, (uint32_t)block);
+                    draw_any = pixels_drawn;
 #endif
 
                     if (draw_any) {

@@ -14,12 +14,16 @@ static bool FrustumCull = true;
 static bool BackfaceCull = true;
 static bool OcclusionCull = true;
 
-static const int Z_BUFFER_WIDTH = 160;
-static const int Z_BUFFER_HEIGHT = 90;
+static const int Z_BUFFER_WIDTH = 160*1;
+static const int Z_BUFFER_HEIGHT = 90*1;
 
 static std::array<uint32_t, Z_BUFFER_WIDTH * Z_BUFFER_HEIGHT> zbuffer = {0};
 
 VoxelState::VoxelState(const Common::World *world) : voxelprog("shaders/voxel.vert", "shaders/voxel.frag"), text("shaders/text.vert", "shaders/text.frag"), colourBuffer("shaders/colour_buffer.vert", "shaders/colour_buffer.frag"), world(world), inputState(0), clientId(0), secret(""), origin(2, 8, 8), tickTime(0), gameTime(0) {
+}
+
+template <typename T> int signum(T val) {
+    return (T(0) < val) - (val < T(0));
 }
 
 static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height) {
@@ -37,6 +41,186 @@ static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, co
     auto screen_y = screen_height - (screen_pos.Y()/2 * screen_height/2 + screen_height/2);
 
     return Dot(screen_x, screen_y);
+}
+
+static void draw_line(int x0, int y0, int x1, int y1, uint32_t colour) {
+    int steep = 0;
+
+    if (std::abs(x0-x1) < std::abs(y0-y1)) {
+        std::swap(x0,y0);
+        std::swap(x1,y1);
+        steep = 1;
+    }
+
+    if (x0>x1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+
+    int dx = x1-x0;
+    int dy = y1-y0;
+
+    int derror2 = std::abs(dy) * 2;
+    int error2 = 0;
+
+    int y = y0;
+
+    x0 = std::max((int)0, x0);
+    x1 = std::min((int)Z_BUFFER_WIDTH, x1);
+
+    for (int x=x0; x <= x1; x++) {
+        if (steep) {
+            zbuffer[Z_BUFFER_WIDTH * x + y] = 1;
+        } else {
+            zbuffer[Z_BUFFER_WIDTH * y + x] = 1;
+        }
+
+        error2 += derror2;
+
+        if (error2 > dx) {
+            error2 -= dx*2;
+
+            if (y1>y0) {
+                y += 1;
+            } else {
+                y -= 1;
+            }
+        }
+    }
+}
+
+static void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colour) {
+    int tmp1x = x0;
+    int tmp1y = y0;
+
+    int tmp2x = x0;
+    int tmp2y = y0;
+
+    bool changed1 = false;
+    bool changed2 = false;
+
+    int dx1 = std::abs(x1 - x0);
+    int dy1 = std::abs(y1 - y0);
+
+    int dx2 = std::abs(x2 - x0);
+    int dy2 = std::abs(y2 - y0);
+
+    int signx1 = (int)signum(x1 - x0);
+    int signx2 = (int)signum(x2 - x0);
+
+    int signy1 = (int)signum(y1 - y0);
+    int signy2 = (int)signum(y2 - y0);
+
+    if (dy1 > dx1) {
+        std::swap(dx1, dy1);
+        changed1 = true;
+    }
+
+    if (dy2 > dx2) {
+        std::swap(dx2, dy2);
+        changed2 = true;
+    }
+
+    int e1 = 2 * dy1 - dx1;
+    int e2 = 2 * dy2 - dx2;
+
+    for (int i = 0; i <= dx1; i++) {
+        draw_line(tmp1x, tmp1y, tmp2x, tmp2y, colour);
+
+        while (e1 >= 0) {
+            if (changed1)
+                tmp1x += signx1;
+            else
+                tmp1y += signy1;
+            e1 = e1 - 2 * dx1;
+        }
+
+        if (changed1)
+            tmp1y += signy1;
+        else
+            tmp1x += signx1;
+
+        e1 = e1 + 2 * dy1;
+
+        while (tmp2y != tmp1y) {
+            while (e2 >= 0) {
+                if (changed2)
+                    tmp2x += signx2;
+                else
+                    tmp2y += signy2;
+                e2 = e2 - 2 * dx2;
+            }
+
+            if (changed2)
+                tmp2y += signy2;
+            else
+                tmp2x += signx2;
+
+            e2 = e2 + 2 * dy2;
+        }
+    }
+}
+
+static void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t colour, bool filled) {
+    if (filled) {
+        if (y1 < y0) {
+            std::swap(x0, x1);
+            std::swap(y0, y1);
+        }
+
+        if (y2 < y1) {
+            std::swap(x1, x2);
+            std::swap(y1, y2);
+        }
+
+        if (y2 < y0) {
+            std::swap(x0, x2);
+            std::swap(y0, y2);
+        }
+
+        if (y1 < y0) {
+            std::swap(x0, x1);
+            std::swap(y0, y1);
+        }
+
+        if (y1 == y2) {
+            draw_triangle(x0, y0, x1, y1, x2, y2, colour, false);
+            fill_triangle(x0, y0, x1, y1, x2, y2, colour);
+        } else if (y0 == y1) {
+            draw_triangle(x2, y2, x0, y0, x1, y1, colour, false);
+            fill_triangle(x2, y2, x0, y0, x1, y1, colour);
+        } else {
+            int x3 = x0 + (((float)(y1 - y0) / (float)(y2 - y0)) * (x2 - x0));
+            int y3 = y1;
+
+            draw_triangle(x0, y0, x1, y1, x3, y3, colour, false);
+            fill_triangle(x0, y0, x1, y1, x3, y3, colour);
+            draw_triangle(x2, y2, x1, y1, x3, y3, colour, false);
+            fill_triangle(x2, y2, x1, y1, x3, y3, colour);
+        }
+    } else {
+        draw_line(x0, y0, x1, y1, colour);
+        draw_line(x0, y0, x2, y2, colour);
+        draw_line(x1, y1, x2, y2, colour);
+    }
+}
+
+static void draw_triangle(Dot a, Dot b, Dot c, uint32_t colour, bool filled) {
+    int x0 = a.X();
+    int y0 = a.Y();
+    int x1 = b.X();
+    int y1 = b.Y();
+    int x2 = c.X();
+    int y2 = c.Y();
+
+    draw_triangle(x0, y0, x1, y1, x2, y2, colour, filled);
+}
+
+static void draw_quad(Dot a, Dot b, Dot c, Dot d, uint32_t colour) {
+    bool filled = true;
+
+    draw_triangle(a.X(), a.Y(), b.X(), b.Y(), c.X(), c.Y(), colour, filled);
+    draw_triangle(a.X(), a.Y(), c.X(), c.Y(), d.X(), d.Y(), colour, filled); 
 }
 
 void VoxelState::onRender(State &state, const uint64_t time) {
@@ -113,12 +297,14 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                 auto visible_faces = chunk->visibleFaces(face_index);
                 std::vector<uint32_t> face_data;
 
+                int print_index = 0;
+
+                Dot3 last_drawn(-1, -1, -1);
+
                 for (const uint32_t packed_voxel : visible_faces) {
                     std::vector<Dot3> points;
+
                     Dot3 first = Renderer::Voxel::Decode(packed_voxel);
-
-                    points.push_back(first);
-
                     auto world_postion = world_offset + VEC3F(first);
 
                     if (face_index == Renderer::VOXEL_BOTTOM) {
@@ -126,6 +312,7 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
+                        points.push_back(first);
                         points.push_back(first + Dot3(1, 0, 0));
                         points.push_back(first + Dot3(0, 0, 1));
                         points.push_back(first + Dot3(1, 0, 1));
@@ -134,14 +321,16 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first + Dot3(1, 0, 0));
-                        points.push_back(first + Dot3(0, 0, 1));
-                        points.push_back(first + Dot3(1, 0, 1));
+                        points.push_back(first + Dot3(0, 1, 0));
+                        points.push_back(first + Dot3(1, 1, 0));
+                        points.push_back(first + Dot3(1, 1, 1));
+                        points.push_back(first + Dot3(0, 1, 1));
                     } else if (face_index == Renderer::VOXEL_LEFT) {
                         auto normal = Vec3F(1, 0, 0);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
+                        points.push_back(first);
                         points.push_back(first + Dot3(0, 0, 1));
                         points.push_back(first + Dot3(0, 1, 0));
                         points.push_back(first + Dot3(0, 1, 1));
@@ -150,22 +339,25 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first + Dot3(0, 0, 1));
-                        points.push_back(first + Dot3(0, 1, 0));
-                        points.push_back(first + Dot3(0, 1, 1));
+                        points.push_back(first + Dot3(1, 0, 0));
+                        points.push_back(first + Dot3(1, 0, 1));
+                        points.push_back(first + Dot3(1, 1, 0));
+                        points.push_back(first + Dot3(1, 1, 1));
                     } else if (face_index == Renderer::VOXEL_BACK) {
                         auto normal = Vec3F(0, 0, -1);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
-                        points.push_back(first + Dot3(1, 0, 0));
-                        points.push_back(first + Dot3(0, 1, 0));
-                        points.push_back(first + Dot3(1, 1, 0));
+                        points.push_back(first + Dot3(0, 0, 1));
+                        points.push_back(first + Dot3(1, 0, 1));
+                        points.push_back(first + Dot3(0, 1, 1));
+                        points.push_back(first + Dot3(1, 1, 1));
                     } else if (face_index == Renderer::VOXEL_FRONT) {
                         auto normal = Vec3F(0, 0, 1);
                         if ((world_postion - potential) % normal < 0)
                             continue;
 
+                        points.push_back(first);
                         points.push_back(first + Dot3(1, 0, 0));
                         points.push_back(first + Dot3(0, 1, 0));
                         points.push_back(first + Dot3(1, 1, 0));
@@ -219,6 +411,8 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                     max_y = std::max(max_y, screen_pos_2.Y());
                     max_y = std::max(max_y, screen_pos_3.Y());
 
+
+#if 0
                     for (int y = min_y; y <= max_y; y++) {
                         for (int x = min_x; x <= max_x; x++) {
                             if (zbuffer[Z_BUFFER_WIDTH * y + x])
@@ -226,13 +420,33 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                             zbuffer[Z_BUFFER_WIDTH * y + x] = (uint32_t)block;
                             depth_buffer[Z_BUFFER_WIDTH * y + x] = (uint32_t)block;
                             draw_any = true;
+                            last_drawn = first;
                         }
                     }
-
+#else
                     draw_any = true;
+                    draw_quad(screen_pos_0, screen_pos_1, screen_pos_3, screen_pos_2, (uint32_t)block);
+#endif
+
                     if (draw_any) {
-                        //std::cerr << "(" << min_x << "," << min_y << "),(" << max_x << "," << max_y << ") " << (int)block << "\n";
                         face_data.push_back(packed_voxel);
+                    } else {
+                        if (face_index == Renderer::VOXEL_LEFT || face_index == Renderer::VOXEL_RIGHT) {
+                            if (last_drawn.X() == first.X()) {
+                                face_data.push_back(packed_voxel);
+                                continue;
+                            }
+                        } else if (face_index == Renderer::VOXEL_BOTTOM || face_index == Renderer::VOXEL_TOP) {
+                            if (last_drawn.Y() == first.Y()) {
+                                face_data.push_back(packed_voxel);
+                                continue;
+                            }
+                        } else if (face_index == Renderer::VOXEL_FRONT || face_index == Renderer::VOXEL_BACK) {
+                            if (last_drawn.Z() == first.Z()) {
+                                face_data.push_back(packed_voxel);
+                                continue;
+                            }
+                        }
                     }
                 }
 

@@ -26,12 +26,12 @@ template <typename T> int signum(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
-static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height) {
+static Dot3 world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height) {
     auto pos = Vec4F(VEC3F(world_pos), 1.0);
     auto v = projection_matrix * (view_matrix * pos);
 
     if (v.Z() < 0)
-        return Dot(-1, -1);
+        return Dot3(-1, -1, -1);
 
     auto screen_pos = v.XYZ();
     if (v.W() != 0)
@@ -39,8 +39,9 @@ static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, co
 
     auto screen_x = screen_pos.X()/2 * screen_width/2 + screen_width/2;
     auto screen_y = screen_height - (screen_pos.Y()/2 * screen_height/2 + screen_height/2);
+    auto screen_z = screen_pos.Z()/2 * 16 + 16;
 
-    return Dot(screen_x, screen_y);
+    return Dot3(screen_x, screen_y, screen_z);
 }
 
 static int draw_line(int x0, int y0, int x1, int y1, uint32_t colour) {
@@ -390,17 +391,17 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         (screen_pos_3.X() < 0 || screen_pos_3.X() >= Z_BUFFER_WIDTH || screen_pos_3.Y() < 0 || screen_pos_3.Y() >= Z_BUFFER_HEIGHT))
                         continue;
 
-                    screen_pos_0 = Dot::BuildMax(screen_pos_0, Dot(0, 0));
-                    screen_pos_0 = Dot::BuildMin(screen_pos_0, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                    screen_pos_0 = Dot3(Dot::BuildMax(screen_pos_0.XY(), Dot(0, 0)), screen_pos_0.Z());
+                    screen_pos_0 = Dot3(Dot::BuildMin(screen_pos_0.XY(), Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1)), screen_pos_0.Z());
 
-                    screen_pos_1 = Dot::BuildMax(screen_pos_1, Dot(0, 0));
-                    screen_pos_1 = Dot::BuildMin(screen_pos_1, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                    screen_pos_1 = Dot3(Dot::BuildMax(screen_pos_1.XY(), Dot(0, 0)), screen_pos_0.Z());
+                    screen_pos_1 = Dot3(Dot::BuildMin(screen_pos_1.XY(), Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1)), screen_pos_0.Z());
 
-                    screen_pos_2 = Dot::BuildMax(screen_pos_2, Dot(0, 0));
-                    screen_pos_2 = Dot::BuildMin(screen_pos_2, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                    screen_pos_2 = Dot3(Dot::BuildMax(screen_pos_2.XY(), Dot(0, 0)), screen_pos_0.Z());
+                    screen_pos_2 = Dot3(Dot::BuildMin(screen_pos_2.XY(), Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1)), screen_pos_0.Z());
 
-                    screen_pos_3 = Dot::BuildMax(screen_pos_3, Dot(0, 0));
-                    screen_pos_3 = Dot::BuildMin(screen_pos_3, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                    screen_pos_3 = Dot3(Dot::BuildMax(screen_pos_3.XY(), Dot(0, 0)), screen_pos_0.Z());
+                    screen_pos_3 = Dot3(Dot::BuildMin(screen_pos_3.XY(), Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1)), screen_pos_0.Z());
 
                     Common::Block block = chunk->block(first);
 
@@ -429,7 +430,7 @@ void VoxelState::onRender(State &state, const uint64_t time) {
 #if 1
                     for (int y = min_y; y <= max_y; y++) {
                         for (int x = min_x; x <= max_x; x++) {
-                            if (zbuffer[Z_BUFFER_WIDTH * y + x])
+                            if (depth_buffer[Z_BUFFER_WIDTH * y + x])
                                 continue;
                             zbuffer[Z_BUFFER_WIDTH * y + x] = (uint32_t)block;
                             depth_buffer[Z_BUFFER_WIDTH * y + x] = (uint32_t)block;

@@ -45,6 +45,19 @@ namespace Math {
                 z = V.z;
             }
 
+            Point3<T>(const Point2<T> &xy, T _z) {
+                x = xy[0];
+                y = xy[1];
+                z = _z;
+            }
+
+            Point3<T>(T _x, const Point2<T> &yz) {
+                x = _x;
+                y = yz[0];
+                z = yz[1];
+            }
+
+
             //Accessors
             T X() const {
                 return x;

@@ -4,7 +4,7 @@ RM = rm -f
 RMDIR = rm -rf
 INC = -I src -I src/external -I /opt/local/jsoncons/include -I /opt/local/picosha2/include
 LDFLAGS = $(shell sdl2-config --libs) -lGL -lGLU -lglfw -lstdc++ -lportaudio -lpthread -lncurses
-CPPFLAGS = -g -std=c++17 $(INC) -Wall $(shell sdl2-config --cflags) -pthread
+CPPFLAGS = -g -O3 -std=c++17 $(INC) -Wall $(shell sdl2-config --cflags) -pthread
 STRIP = strip
  
 ifdef CONFIG_W32

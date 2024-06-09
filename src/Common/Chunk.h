@@ -23,12 +23,12 @@ namespace Common {
     };
 
     enum class Neighbour {
-        Bottom = 0,
-        Top,
-        Left,
-        Right,
+        Left = 0,
         Front,
-        Back
+        Right,
+        Back,
+        Top,
+        Bottom
     };
 
     inline Neighbour operator!(Neighbour n) {

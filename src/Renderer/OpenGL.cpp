@@ -27,7 +27,7 @@ void OpenGL::setupWorldView() {
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
     //glDisable(GL_CULL_FACE);
-    glEnable(GL_CULL_FACE);
+    //glEnable(GL_CULL_FACE);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);

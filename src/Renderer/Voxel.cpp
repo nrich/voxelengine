@@ -5,23 +5,17 @@
 using namespace Renderer;
 
 static const GLfloat face_vertex_buffer_data[VOXEL_COUNT][12] = {
-    {   // VOXEL_BOTTOM
-        0.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f,
-        1.0f, 0.0f, 1.0f,
-    },
-    {   // VOXEL_TOP
-        0.0f, 1.0f, 0.0f,
-        0.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 1.0f,
-    },
     {   // VOXEL_LEFT
         0.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 0.0f,
         0.0f, 1.0f, 1.0f,
+    },
+    {   // VOXEL_FRONT
+        0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        1.0f, 1.0f, 0.0f,
     },
     {   // VOXEL_RIGHT
         1.0f, 0.0f, 0.0f,
@@ -29,18 +23,23 @@ static const GLfloat face_vertex_buffer_data[VOXEL_COUNT][12] = {
         1.0f, 0.0f, 1.0f,
         1.0f, 1.0f, 1.0f,
     },
-    {   // VOXEL_FRONT
-        0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        1.0f, 1.0f, 0.0f,
-
-    },
     {   // VOXEL_BACK
         0.0f, 0.0f, 1.0f,
         1.0f, 0.0f, 1.0f,
         0.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 1.0f,
+    },
+    {   // VOXEL_TOP
+        0.0f, 1.0f, 0.0f,
+        0.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f,
+    },
+    {   // VOXEL_BOTTOM
+        0.0f, 0.0f, 0.0f,
+        1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 1.0f,
     },
 };
 

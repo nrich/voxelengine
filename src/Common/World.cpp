@@ -6,9 +6,28 @@ using namespace Common;
 
 World::World(uint64_t seed) : seed(seed) {
     root = std::make_shared<Chunk>();
+
+#if 0
+    root->set(4, 1, 16, Block::Rock);
+    root->set(4, 2, 16, Block::Rock);
+    root->set(4, 3, 16, Block::Rock);
+    root->set(3, 1, 16, Block::Rock);
+    root->set(3, 2, 16, Block::Rock);
+    root->set(3, 3, 16, Block::Rock);
+    root->set(5, 1, 16, Block::Rock);
+    root->set(5, 2, 16, Block::Rock);
+    root->set(5, 3, 16, Block::Rock);
+
+    root->set(4, 1, 18, Block::Sand);
+    root->set(4, 1, 12, Block::Grass);
+
+    root->buildMesh();
+return;
+#endif
+
     root->fill(seed, 0, 0, 0);
     root->buildMesh();
-
+//return;
     expand(root, Dot3(0, 0, 0));
 
     expand(root->neighbour(Neighbour::Left), Dot3(-BLOCKS_LEN, 0, 0));

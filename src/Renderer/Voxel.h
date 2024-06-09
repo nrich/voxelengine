@@ -13,12 +13,12 @@
 namespace Renderer {
 
 enum {
-    VOXEL_BOTTOM = 0,
-    VOXEL_TOP,
-    VOXEL_LEFT,
-    VOXEL_RIGHT,
+    VOXEL_LEFT = 0,
     VOXEL_FRONT,
+    VOXEL_RIGHT,
     VOXEL_BACK,
+    VOXEL_TOP,
+    VOXEL_BOTTOM,
     VOXEL_COUNT
 };
 

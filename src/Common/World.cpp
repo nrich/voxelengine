@@ -27,7 +27,6 @@ return;
 
     root->fill(seed, 0, 0, 0);
     root->buildMesh();
-//return;
     expand(root, Dot3(0, 0, 0));
 
     expand(root->neighbour(Neighbour::Left), Dot3(-BLOCKS_LEN, 0, 0));

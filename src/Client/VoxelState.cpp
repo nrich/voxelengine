@@ -2,6 +2,7 @@
 #include "Client/VoxelState.h"
 #include "Client/Camera.h"
 #include "Client/ChangeState.h"
+#include "Client/OcclusionTree.h"
 
 #include "Common/Keys.h"
 
@@ -26,7 +27,7 @@ template <typename T> int signum(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
-static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height) {
+static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, const MatrixF &projection_matrix, int screen_width, int screen_height, float &z) {
     auto pos = Vec4F(VEC3F(world_pos), 1.0);
     auto v = projection_matrix * (view_matrix * pos);
 
@@ -40,6 +41,7 @@ static Dot world_to_screen(const Dot3 &world_pos, const MatrixF &view_matrix, co
     auto screen_x = screen_pos.X()/2 * screen_width/2 + screen_width/2;
     auto screen_y = screen_height - (screen_pos.Y()/2 * screen_height/2 + screen_height/2);
 
+    z = v.Z();
     return Dot(screen_x, screen_y);
 }
 
@@ -299,6 +301,9 @@ void VoxelState::onRender(State &state, const uint64_t time) {
     if (OcclusionCull) {
         std::fill(zbuffer.begin(), zbuffer.end(), 0);
 
+        OcclusionTree occlusion_tree;
+
+        int chunk_idx = 0;
         for (const auto &chunk_index : frustum_culled_list) {
             auto chunk = world->chunk(chunk_index);
             auto world_offset = VEC3F(chunk_index) * BLOCKS_LEN;
@@ -378,11 +383,12 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         points[3] = first + Dot3(1, 1, 0);
                     }
 
-#if 1
-                    auto screen_pos_0 = world_to_screen(chunk_index * BLOCKS_LEN + points[0], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
-                    auto screen_pos_1 = world_to_screen(chunk_index * BLOCKS_LEN + points[1], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
-                    auto screen_pos_2 = world_to_screen(chunk_index * BLOCKS_LEN + points[2], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
-                    auto screen_pos_3 = world_to_screen(chunk_index * BLOCKS_LEN + points[3], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT);
+                    float z0, z1, z2, z3;
+
+                    auto screen_pos_0 = world_to_screen(chunk_index * BLOCKS_LEN + points[0], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z0);
+                    auto screen_pos_1 = world_to_screen(chunk_index * BLOCKS_LEN + points[1], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z1);
+                    auto screen_pos_2 = world_to_screen(chunk_index * BLOCKS_LEN + points[2], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z2);
+                    auto screen_pos_3 = world_to_screen(chunk_index * BLOCKS_LEN + points[3], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z3);
 
                     if ((screen_pos_0.X() < 0 || screen_pos_0.X() >= Z_BUFFER_WIDTH || screen_pos_0.Y() < 0 || screen_pos_0.Y() >= Z_BUFFER_HEIGHT) &&
                         (screen_pos_1.X() < 0 || screen_pos_1.X() >= Z_BUFFER_WIDTH || screen_pos_1.Y() < 0 || screen_pos_1.Y() >= Z_BUFFER_HEIGHT) &&
@@ -402,75 +408,14 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                     screen_pos_3 = Dot::BuildMax(screen_pos_3, Dot(0, 0));
                     screen_pos_3 = Dot::BuildMin(screen_pos_3, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
 
-                    Common::Block block = chunk->block(first);
-
-                    int min_x = screen_pos_0.X();
-                    int max_x = screen_pos_0.X();
-                    int min_y = screen_pos_0.Y();
-                    int max_y = screen_pos_0.Y();
-
-                    min_x = std::min(min_x, screen_pos_1.X());
-                    min_x = std::min(min_x, screen_pos_2.X());
-                    min_x = std::min(min_x, screen_pos_3.X());
-
-                    max_x = std::max(max_x, screen_pos_1.X());
-                    max_x = std::max(max_x, screen_pos_2.X());
-                    max_x = std::max(max_x, screen_pos_3.X());
-
-                    min_y = std::min(min_y, screen_pos_1.Y());
-                    min_y = std::min(min_y, screen_pos_2.Y());
-                    min_y = std::min(min_y, screen_pos_3.Y());
-
-                    max_y = std::max(max_y, screen_pos_1.Y());
-                    max_y = std::max(max_y, screen_pos_2.Y());
-                    max_y = std::max(max_y, screen_pos_3.Y());
-
-#endif
-
-#if 1
-                    int adj_max_x = std::min(Z_BUFFER_WIDTH-1, min_x + std::max((max_x-min_x)/1, 1));
-                    int adj_max_y = std::min(Z_BUFFER_HEIGHT-1, min_y + std::max((max_y-min_y)/1, 1));
-
-                    adj_max_x = max_x;
-                    adj_max_y = max_y;
-
-
-                    for (int y = min_y; y <= adj_max_y; y++) {
-                        for (int x = min_x; x <= adj_max_x; x++) {
-                            if (zbuffer[Z_BUFFER_WIDTH * y + x])
-                                continue;
-                            zbuffer[Z_BUFFER_WIDTH * y + x] = (uint32_t)block;
-                            depth_buffer[Z_BUFFER_WIDTH * y + x] = (uint32_t)block;
-                            draw_any = true;
-                            last_drawn = first;
-                        }
-                    }
-#else
-                    int pixels_drawn = draw_quad(screen_pos_0, screen_pos_1, screen_pos_3, screen_pos_2, (uint32_t)block);
-                    draw_any = pixels_drawn;
-#endif
-
-                    if (draw_any) {
-                        face_data.push_back(packed_voxel);
-                    } else {
-                        if (face_index == Renderer::VOXEL_LEFT || face_index == Renderer::VOXEL_RIGHT) {
-                            if (last_drawn.X() == first.X()) {
-                                face_data.push_back(packed_voxel);
-                                continue;
-                            }
-                        } else if (face_index == Renderer::VOXEL_BOTTOM || face_index == Renderer::VOXEL_TOP) {
-                            if (last_drawn.Y() == first.Y()) {
-                                face_data.push_back(packed_voxel);
-                                continue;
-                            }
-                        } else if (face_index == Renderer::VOXEL_FRONT || face_index == Renderer::VOXEL_BACK) {
-                            if (last_drawn.Z() == first.Z()) {
-                                face_data.push_back(packed_voxel);
-                                continue;
-                            }
-                        }
-                    }
+                    occlusion_tree.addQuad(screen_pos_0, z0, screen_pos_1, z1, screen_pos_2, z2, screen_pos_3, z3, packed_voxel, face_index, chunk_idx);
                 }
+            }
+
+            auto faces_by_index = occlusion_tree.visibleFaces(chunk_idx);
+
+            for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
+                auto face_data = faces_by_index[face_index];
 
                 voxelprog("world_offset", world_offset);
                 voxelprog("face_type", face_index);
@@ -478,12 +423,14 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                 total += face_data.size();
                 voxel.drawFaces(face_index, face_data);
             }
+
+            chunk_idx++;
         }
 
-        auto screen = renderer->screenTransformation(10, 30, 128, 72);
-        std::vector<uint32_t> screen_buffer;
-        std::copy(zbuffer.begin(), zbuffer.end(), std::back_inserter(screen_buffer));
-        colourBuffer.draw(screen_buffer, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, colours, screen);
+//        auto screen = renderer->screenTransformation(10, 30, 128, 72);
+//        std::vector<uint32_t> screen_buffer;
+//        std::copy(zbuffer.begin(), zbuffer.end(), std::back_inserter(screen_buffer));
+//        colourBuffer.draw(screen_buffer, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, colours, screen);
     } else {
         for (const auto &chunk_index : frustum_culled_list) {
             auto chunk = world->chunk(chunk_index);

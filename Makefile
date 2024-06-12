@@ -93,6 +93,7 @@ COMMON_OBJS := \
 	src/Audio/Tone.o \
 	src/Client/BaseState.o \
 	src/Client/Camera.o \
+	src/Client/OcclusionTree.o \
 	src/Client/VoxelState.o \
 	src/Client/State.o \
 	src/Common/Chunk.o \

@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <array>
+#include <optional>
 
 #include "Common/Shared.h"
 #include "Math/Point3.h"
@@ -75,6 +76,8 @@ namespace Common {
         std::shared_ptr<Chunk> neighbour(Neighbour index) const {
             return neighbours[(int)index];
         }
+
+        std::optional<std::pair<Dot3, Dot3>> Occluder() const;
 
         void fill(uint64_t seed, int32_t x_offset, int32_t y_offset, int32_t z_offset);
 

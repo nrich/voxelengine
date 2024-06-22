@@ -7,6 +7,7 @@
 #include "Math/Point3.h"
 #include "Math/Plane.h"
 #include "Math/Matrix.h"
+#include "Client/BoundingSphere.h"
 
 namespace Client {
         using Math::Point3;
@@ -81,6 +82,17 @@ namespace Client {
                             return false;
 
                     return true;
+                }
+
+                bool isInside(const BoundingSphere<T> &sphere) const {
+                    if (isInside(sphere.Center()))
+                        return true;
+
+                    for (int i = F_LEFT; i < F_COUNT; i++)
+                        if (abs(viewPlanes[i].distance(sphere.Center())) <= sphere.Radius())
+                            return true;
+
+                    return false;
                 }
 
                 bool isInside(const Point3<T> &min, const Point3<T> &max) const {
@@ -180,6 +192,6 @@ namespace Client {
 
 };
 
-typedef Client::Frustum<float> Frustumf;
+typedef Client::Frustum<float> FrustumF;
 
 #endif //__CLIENT_FRUSTUM_H__

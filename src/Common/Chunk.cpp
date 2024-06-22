@@ -64,6 +64,13 @@ const std::vector<uint32_t> &Chunk::visibleFaces(int face_index) const {
     return mesh->faces(face_index);
 }
 
+std::optional<std::pair<Dot3, Dot3>> Chunk::Occluder() const {
+    if (!mesh) {
+        return std::nullopt;
+    }
+    return mesh->Occluder();
+}
+
 void Chunk::buildMesh() {
     if (mesh)
         mesh.release();

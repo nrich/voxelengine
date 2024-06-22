@@ -18,8 +18,8 @@ World::World(uint64_t seed) : seed(seed) {
     root->set(5, 2, 16, Block::Rock);
     root->set(5, 3, 16, Block::Rock);
 
-    root->set(4, 1, 18, Block::Sand);
-    root->set(4, 1, 12, Block::Grass);
+    root->set(4, 1, 20, Block::Sand);
+    root->set(4, 1, 10, Block::Grass);
 
     root->buildMesh();
 return;
@@ -27,6 +27,7 @@ return;
 
     root->fill(seed, 0, 0, 0);
     root->buildMesh();
+//return;
     expand(root, Dot3(0, 0, 0));
 
     expand(root->neighbour(Neighbour::Left), Dot3(-BLOCKS_LEN, 0, 0));
@@ -67,9 +68,6 @@ void World::expand(std::shared_ptr<Chunk> chunk, const Dot3 &centre) {
         back->buildMesh();
         Chunk::Join(chunk, Neighbour::Back, back);
     }
-
-    //
-
 
     auto front_left = left->neighbour(Neighbour::Front);
     if (!front_left) {

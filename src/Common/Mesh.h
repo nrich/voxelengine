@@ -3,18 +3,29 @@
 
 #include <memory>
 #include <vector>
+#include <optional>
 
 #include "Common/Chunk.h"
 #include "Renderer/Voxel.h"
 
 namespace Common {
     class Mesh {
-        std::array<std::vector<uint32_t>, Renderer::VOXEL_COUNT> faces_list;
+        std::array<std::vector<uint32_t>, Renderer::VOXEL_COUNT> facesList;
+        std::optional<std::pair<Dot3, Dot3>> occluder;
+        std::optional<std::pair<Dot3, Dot3>> visible;
     public:
         Mesh(const Chunk *chunk);
 
         const std::vector<uint32_t> &faces(int face_index) const {
-            return faces_list[face_index];
+            return facesList[face_index];
+        }
+
+        std::optional<std::pair<Dot3, Dot3>> Occluder() const {
+            return occluder;
+        }
+
+        std::optional<std::pair<Dot3, Dot3>> Visible() const {
+            return visible;
         }
 
         ~Mesh();

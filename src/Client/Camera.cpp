@@ -17,7 +17,7 @@ MatrixF Camera::look() const {
     return m;
 }
 
-const Frustumf Camera::getFrustum(float ratio, float fov, float distance) const {
+const FrustumF Camera::getFrustum(float ratio, float fov, float distance) const {
     auto F = angles.Forward();
     auto U = angles.Up();
 

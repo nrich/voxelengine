@@ -19,7 +19,7 @@ namespace Client {
         }
 
         MatrixF look() const;
-        const Frustumf getFrustum(float ratio, float fov, float distance=1000.0) const;
+        const FrustumF getFrustum(float ratio, float fov, float distance=1000.0) const;
 
         Vec3F Origin() const {
             return origin;

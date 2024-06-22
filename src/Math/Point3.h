@@ -160,44 +160,27 @@ namespace Math {
             }
 
             const bool operator>(const Point3<T> &V) const {
-                if (x <= V.x)
-                    return false;
-                if (y <= V.y)
-                    return false;
-                if (z <= V.z)
+                if (x <= V.x && y <= V.y && z <= V.z)
                     return false;
 
                 return true;
             }
 
             const bool operator<(const Point3<T> &V) const {
-                if (x >= V.x)
-                    return false;
-                if (y >= V.y)
-                    return false;
-                if (z >= V.z)
+                if (x >= V.x && y >= V.y && z >= V.z)
                     return false;
 
                 return true;
             }
 
             const bool operator>=(const Point3<T> &V) const {
-                if (x < V.x)
+                if (x < V.x && y < V.y && z < V.z)
                     return false;
-                if (y < V.y)
-                    return false;
-                if (z < V.z)
-                    return false;
-
                 return true;
             }
 
             const bool operator<=(const Point3<T> &V) const {
-                if (x > V.x)
-                    return false;
-                if (y > V.y)
-                    return false;
-                if (z > V.z)
+                if (x > V.x && y > V.y && z > V.z)
                     return false;
 
                 return true;

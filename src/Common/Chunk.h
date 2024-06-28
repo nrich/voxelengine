@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "Common/Shared.h"
+#include "Common/Occluder.h"
 #include "Math/Point3.h"
 
 #include "external/PerlinNoise.hpp"
@@ -77,14 +78,15 @@ namespace Common {
             return neighbours[(int)index];
         }
 
-        std::optional<std::pair<Dot3, Dot3>> Occluder() const;
-
         void fill(uint64_t seed, int32_t x_offset, int32_t y_offset, int32_t z_offset);
 
         static void Join(std::shared_ptr<Chunk> a, Neighbour relationship, std::shared_ptr<Chunk> b);
 
         const std::vector<uint32_t> &visibleFaces(int face_index) const;
         void buildMesh();
+
+        std::optional<Occluder> coarse(int x, int y, int z) const;
+        std::optional<Occluder> fine(int x, int y, int z) const;
 
         ~Chunk();
     };

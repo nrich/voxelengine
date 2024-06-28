@@ -64,13 +64,6 @@ const std::vector<uint32_t> &Chunk::visibleFaces(int face_index) const {
     return mesh->faces(face_index);
 }
 
-std::optional<std::pair<Dot3, Dot3>> Chunk::Occluder() const {
-    if (!mesh) {
-        return std::nullopt;
-    }
-    return mesh->Occluder();
-}
-
 void Chunk::buildMesh() {
     if (mesh)
         mesh.release();
@@ -113,6 +106,21 @@ void Chunk::fill(uint64_t seed, int32_t x_offset, int32_t y_offset, int32_t z_of
         }
     }
 }
+
+std::optional<Occluder> Chunk::coarse(int x, int y, int z) const {
+    if (!mesh)
+        return std::nullopt;
+
+    return mesh->coarse(x, y, z);
+}
+
+std::optional<Occluder> Chunk::fine(int x, int y, int z) const {
+    if (!mesh)
+        return std::nullopt;
+
+    return mesh->fine(x, y, z);
+}
+
 
 Chunk::~Chunk() {
 

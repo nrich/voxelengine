@@ -177,10 +177,11 @@ std::vector<Dot3> OcclusionTree::visibleChunks() {
     std::set<Dot3> visible_chunk_indexes_set;
 
     for (auto &[z, nodelist]: nodes) {
-        std::cerr << z;
-
         Layer all_nodes;
         for (auto const &node : nodelist) {
+//            if (auto search = visible_chunk_indexes_set.find(node.chunkIndex); search != visible_chunk_indexes_set.end())
+//                continue;
+
             Layer node_layer;
             draw_quad_on_layer(node.min, node.max, node_layer);
 
@@ -189,12 +190,8 @@ std::vector<Dot3> OcclusionTree::visibleChunks() {
             if (compare.any()) {
                 visible_chunk_indexes_set.insert(node.chunkIndex);
                 all_nodes |= node_layer;
-                std::cerr << " Added " << node.min.toString() << "-" << node.max.toString();
-            } else {
-                std::cerr << " Skip";
             }
         }
-        std::cerr << "\n";
 
         layer |= all_nodes;
     }

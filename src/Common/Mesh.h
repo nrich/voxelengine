@@ -3,16 +3,18 @@
 
 #include <memory>
 #include <vector>
-#include <optional>
+#include <bitset>
 
 #include "Common/Chunk.h"
+#include "Common/Occluder.h"
 #include "Renderer/Voxel.h"
 
 namespace Common {
     class Mesh {
         std::array<std::vector<uint32_t>, Renderer::VOXEL_COUNT> facesList;
-        std::optional<std::pair<Dot3, Dot3>> occluder;
-        std::optional<std::pair<Dot3, Dot3>> visible;
+
+        std::array<Occluder, 4*4*4> coarseOcclusion;
+        std::array<Occluder, 8*8*8> fineOcclusion;
     public:
         Mesh(const Chunk *chunk);
 
@@ -20,12 +22,12 @@ namespace Common {
             return facesList[face_index];
         }
 
-        std::optional<std::pair<Dot3, Dot3>> Occluder() const {
-            return occluder;
+        const Occluder fine(int x, int y, int z) const {
+            return fineOcclusion[y*4*4 + z*4 + x];
         }
 
-        std::optional<std::pair<Dot3, Dot3>> Visible() const {
-            return visible;
+        const Occluder coarse(int x, int y, int z) const {
+            return fineOcclusion[y*8*8 + z*8 + x];
         }
 
         ~Mesh();

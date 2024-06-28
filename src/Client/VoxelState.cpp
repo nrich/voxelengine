@@ -333,13 +333,22 @@ void VoxelState::onRender(State &state, const uint64_t time) {
         std::vector<Dot3> occlusion_culled_list;
         OcclusionTree occlusion_tree;
 
+/*
+    VOXEL_LEFT = 0,
+    VOXEL_FRONT,
+    VOXEL_RIGHT,
+    VOXEL_BACK,
+    VOXEL_TOP,
+    VOXEL_BOTTOM,
+*/
+
         std::vector<std::array<int, 4>> face_indices = {
-            {0, 1, 2, 3},
-            {4, 5, 6, 7},
-            {0, 4, 1, 5},
-            {2, 6, 3, 7},
-            {0, 4, 2, 6},
-            {1, 5, 3, 7},
+            {0, 4, 1, 5},   // Left
+            {0, 4, 2, 6},   // Front
+            {2, 6, 3, 7},   // Right
+            {1, 5, 3, 7},   // Back
+            {4, 5, 6, 7},   // Top
+            {0, 1, 2, 3},   // Bottom
         };
 
         int colour = 0;
@@ -351,7 +360,7 @@ void VoxelState::onRender(State &state, const uint64_t time) {
             auto chunk_dir = ~(client_index - chunk_index);
 
             if (client_index == chunk_index) {
-                //occlusion_culled_list.push_back(chunk_index);
+                occlusion_culled_list.push_back(chunk_index);
 
                 for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
                     auto visible_faces = chunk->visibleFaces(face_index);
@@ -444,50 +453,88 @@ void VoxelState::onRender(State &state, const uint64_t time) {
                         screen_pos_3 = Dot::BuildMax(screen_pos_3, Dot(0, 0));
                         screen_pos_3 = Dot::BuildMin(screen_pos_3, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
 
-                        //occlusion_tree.drawQuad(screen_pos_0, screen_pos_1, screen_pos_2, screen_pos_3);
+                        occlusion_tree.drawQuad(screen_pos_0, screen_pos_1, screen_pos_2, screen_pos_3);
                     }
                 }
             } else {
-                auto occluder = chunk->Occluder();
+                for (int y = 0; y < 4; y++) {
+                    for (int z = 0; z < 4; z++) {
+                        for (int x = 0; x < 4; x++) {
+                            auto occluder = chunk->coarse(x, y, z);
+                            if (occluder) {
+                                if (occluder->Count() == 0) {
+                                    continue;
+                                }
 
-                if (!occluder)
-                    continue;
+                                BoundingBox bbox(occluder->Min(), occluder->Max());
 
-                int pixels_drawn = 0;
-                BoundingBoxI box(occluder->first, occluder->second);
+                                auto world_postion = world_offset + VEC3F(occluder->Min());
 
-                for (const auto &f : face_indices) {
-                    float z0, z1, z2, z3;
-                    auto screen_pos_0 = world_to_screen(chunk_index * BLOCKS_LEN + box[f[0]], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z0);
-                    auto screen_pos_1 = world_to_screen(chunk_index * BLOCKS_LEN + box[f[1]], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z1);
-                    auto screen_pos_2 = world_to_screen(chunk_index * BLOCKS_LEN + box[f[2]], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z2);
-                    auto screen_pos_3 = world_to_screen(chunk_index * BLOCKS_LEN + box[f[3]], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z3);
+                                std::array<Dot3, 4> points;
 
-                    if (z0 < 0 || z1 < 0 || z2 < 0 || z3 < 0)
-                        continue;
+                                for (int face_index = 0; face_index < Renderer::VOXEL_COUNT; face_index++) {
+                                    if (face_index == Renderer::VOXEL_FRONT) {
+                                        auto normal = Vec3F(0, 0, 1);
+                                        if ((world_postion - potential) % normal < 0)
+                                            continue;
+                                    } else if (face_index == Renderer::VOXEL_BACK) {
+                                        auto normal = Vec3F(0, 0, -1);
+                                        if ((world_postion - potential) % normal < 0)
+                                            continue;
+                                    } else if (face_index == Renderer::VOXEL_LEFT) {
+                                        auto normal = Vec3F(1, 0, 0);
+                                        if ((world_postion - potential) % normal < 0)
+                                            continue;
 
-                    //std::cerr << screen_pos_0.toString() << "," << screen_pos_1.toString() << "," << screen_pos_2.toString() << "," << screen_pos_3.toString() << "\n";
+                                    } else if (face_index == Renderer::VOXEL_RIGHT) {
+                                        auto normal = Vec3F(-1, 0, 0);
+                                        if ((world_postion - potential) % normal < 0)
+                                            continue;
+                                    } else if (face_index == Renderer::VOXEL_BOTTOM) {
+                                        auto normal = Vec3F(0, 1, 0);
+                                        if ((world_postion - potential) % normal < 0)
+                                            continue;
+                                    } else if (face_index == Renderer::VOXEL_TOP) {
+                                        auto normal = Vec3F(0, -1, 0);
+                                        if ((world_postion - potential) % normal < 0)
+                                            continue;
+                                    }
 
-/*
-                    if ((screen_pos_0.X() < 0 || screen_pos_0.X() >= Z_BUFFER_WIDTH || screen_pos_0.Y() < 0 || screen_pos_0.Y() >= Z_BUFFER_HEIGHT) &&
-                        (screen_pos_1.X() < 0 || screen_pos_1.X() >= Z_BUFFER_WIDTH || screen_pos_1.Y() < 0 || screen_pos_1.Y() >= Z_BUFFER_HEIGHT) &&
-                        (screen_pos_2.X() < 0 || screen_pos_2.X() >= Z_BUFFER_WIDTH || screen_pos_2.Y() < 0 || screen_pos_2.Y() >= Z_BUFFER_HEIGHT) &&
-                        (screen_pos_3.X() < 0 || screen_pos_3.X() >= Z_BUFFER_WIDTH || screen_pos_3.Y() < 0 || screen_pos_3.Y() >= Z_BUFFER_HEIGHT))
-                        continue;
-*/
-                    screen_pos_0 = Dot::BuildMax(screen_pos_0, Dot(0, 0));
-                    screen_pos_0 = Dot::BuildMin(screen_pos_0, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                                    points[0] = bbox[face_indices[face_index][0]];
+                                    points[1] = bbox[face_indices[face_index][1]];
+                                    points[2] = bbox[face_indices[face_index][2]];
+                                    points[3] = bbox[face_indices[face_index][3]];
 
-                    screen_pos_1 = Dot::BuildMax(screen_pos_1, Dot(0, 0));
-                    screen_pos_1 = Dot::BuildMin(screen_pos_1, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                                    float z0, z1, z2, z3;
 
-                    screen_pos_2 = Dot::BuildMax(screen_pos_2, Dot(0, 0));
-                    screen_pos_2 = Dot::BuildMin(screen_pos_2, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                                    auto screen_pos_0 = world_to_screen(chunk_index * BLOCKS_LEN + points[0], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z0);
+                                    auto screen_pos_1 = world_to_screen(chunk_index * BLOCKS_LEN + points[1], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z1);
+                                    auto screen_pos_2 = world_to_screen(chunk_index * BLOCKS_LEN + points[2], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z2);
+                                    auto screen_pos_3 = world_to_screen(chunk_index * BLOCKS_LEN + points[3], view, projection, Z_BUFFER_WIDTH, Z_BUFFER_HEIGHT, z3);
 
-                    screen_pos_3 = Dot::BuildMax(screen_pos_3, Dot(0, 0));
-                    screen_pos_3 = Dot::BuildMin(screen_pos_3, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+                                    if ((screen_pos_0.X() < 0 || screen_pos_0.X() >= Z_BUFFER_WIDTH || screen_pos_0.Y() < 0 || screen_pos_0.Y() >= Z_BUFFER_HEIGHT) &&
+                                        (screen_pos_1.X() < 0 || screen_pos_1.X() >= Z_BUFFER_WIDTH || screen_pos_1.Y() < 0 || screen_pos_1.Y() >= Z_BUFFER_HEIGHT) &&
+                                        (screen_pos_2.X() < 0 || screen_pos_2.X() >= Z_BUFFER_WIDTH || screen_pos_2.Y() < 0 || screen_pos_2.Y() >= Z_BUFFER_HEIGHT) &&
+                                        (screen_pos_3.X() < 0 || screen_pos_3.X() >= Z_BUFFER_WIDTH || screen_pos_3.Y() < 0 || screen_pos_3.Y() >= Z_BUFFER_HEIGHT))
+                                        continue;
 
-                    occlusion_tree.addQuad(screen_pos_0, z0, screen_pos_1, z1, screen_pos_2, z2, screen_pos_3, z3, chunk_index);
+                                    screen_pos_0 = Dot::BuildMax(screen_pos_0, Dot(0, 0));
+                                    screen_pos_0 = Dot::BuildMin(screen_pos_0, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+
+                                    screen_pos_1 = Dot::BuildMax(screen_pos_1, Dot(0, 0));
+                                    screen_pos_1 = Dot::BuildMin(screen_pos_1, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+
+                                    screen_pos_2 = Dot::BuildMax(screen_pos_2, Dot(0, 0));
+                                    screen_pos_2 = Dot::BuildMin(screen_pos_2, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+
+                                    screen_pos_3 = Dot::BuildMax(screen_pos_3, Dot(0, 0));
+                                    screen_pos_3 = Dot::BuildMin(screen_pos_3, Dot(Z_BUFFER_WIDTH-1, Z_BUFFER_HEIGHT-1));
+
+                                    occlusion_tree.addQuad(screen_pos_0, z0, screen_pos_1, z1, screen_pos_2, z2, screen_pos_3, z3, chunk_index);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

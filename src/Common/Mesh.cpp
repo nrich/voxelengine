@@ -4,7 +4,7 @@
 
 using namespace Common;
 
-Mesh::Mesh(const Chunk *chunk) : occluder(std::nullopt), visible(std::nullopt) {
+Mesh::Mesh(const Chunk *chunk) {
     for (int y = 0; y < BLOCKS_LEN; y++) {
         for (int z = 0; z < BLOCKS_LEN; z++) {
             for (int x = 0; x < BLOCKS_LEN; x++) {
@@ -46,6 +46,52 @@ Mesh::Mesh(const Chunk *chunk) : occluder(std::nullopt), visible(std::nullopt) {
 
                     facesList[face_index].push_back(Renderer::Voxel::Encode(x, y, z, (int)block - 1));
                 }
+            }
+        }
+    }
+
+    for (int oy = 0, dy = 0; oy < BLOCKS_LEN; oy+=8, dy++) {
+        for (int oz = 0, dz = 0; oz < BLOCKS_LEN; oz+=8, dz++) {
+            for (int ox = 0, dx = 0; ox < BLOCKS_LEN; ox+=8, dx++) {
+                int coarse = 0;
+
+                for (int iy = 0; iy < 8; iy++) {
+                    for (int iz = 0; iz < 8; iz++) {
+                        for (int ix = 0; ix < 8; ix++) {
+                            int x = ox + ix;
+                            int y = oy + iy;
+                            int z = oz + iz;
+
+                            if (chunk->block(x, y, z) != Common::Block::Empty)
+                                coarse++;
+                        }
+                    }
+                }
+
+                coarseOcclusion[dy*4*4 + dz*4 + dx] = Occluder(Dot3(ox, oy, oz), Dot3(ox+8, oy+8, oz+8), coarse, 8*8*8);
+            }
+        }
+    }
+
+    for (int oy = 0, dy = 0; oy < BLOCKS_LEN; oy+=4, dy++) {
+        for (int oz = 0, dz = 0; oz < BLOCKS_LEN; oz+=4, dz++) {
+            for (int ox = 0, dx = 0; ox < BLOCKS_LEN; ox+=4, dx++) {
+                int fine = 0;
+
+                for (int iy = 0; iy < 4; iy++) {
+                    for (int iz = 0; iz < 4; iz++) {
+                        for (int ix = 0; ix < 4; ix++) {
+                            int x = ox + ix;
+                            int y = oy + iy;
+                            int z = oz + iz;
+
+                            if (chunk->block(x, y, z) != Common::Block::Empty)
+                                fine++;
+                        }
+                    }
+                }
+
+                fineOcclusion[dy*8*8 + dz*8 + dx] = Occluder(Dot3(ox, oy, oz), Dot3(ox+4, oy+4, oz+4), fine, 4*4*4);
             }
         }
     }
@@ -115,29 +161,8 @@ Mesh::Mesh(const Chunk *chunk) : occluder(std::nullopt), visible(std::nullopt) {
             }
         });
     }
-
-    if (!facesList[Renderer::VOXEL_TOP].size() || !facesList[Renderer::VOXEL_BOTTOM].size())
-        return;
-
-    if (!facesList[Renderer::VOXEL_LEFT].size() || !facesList[Renderer::VOXEL_RIGHT].size())
-        return;
-
-    if (!facesList[Renderer::VOXEL_FRONT].size() || !facesList[Renderer::VOXEL_BACK].size())
-        return;
-
-    auto top_face = Renderer::Voxel::Decode(*facesList[Renderer::VOXEL_TOP].begin());
-    auto bottom_face = Renderer::Voxel::Decode(*facesList[Renderer::VOXEL_BOTTOM].begin());
-    auto left_face = Renderer::Voxel::Decode(facesList[Renderer::VOXEL_LEFT].back());
-    auto right_face = Renderer::Voxel::Decode(facesList[Renderer::VOXEL_RIGHT].back());
-    auto front_face = Renderer::Voxel::Decode(facesList[Renderer::VOXEL_FRONT].back());
-    auto back_face = Renderer::Voxel::Decode(facesList[Renderer::VOXEL_BACK].back());
-
-    //std::cerr<<top_face.toString() << " " << bottom_face.toString() << "\n";
-
-    occluder = std::optional<std::pair<Dot3, Dot3>>(std::make_pair<Dot3, Dot3>(Dot3(left_face.X(), bottom_face.Y(), front_face.Z()), Dot3(right_face.X(), top_face.Y(), back_face.Z())));
 }
 
 Mesh::~Mesh() {
-
 }
 
